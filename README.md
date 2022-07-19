@@ -8,8 +8,8 @@ Some missing math functions are added to the closed private internals of `netip.
 
 No further types are defined, only helper functions on the existing types `netip.Addr` and `netip.Prefix`.
 
-With these tiny extensions, third party IP-Range libraries, based on the
-stdlib net/netip, are now possible without further bytes/bits fumbling.
+Based on the stdlib `net/netip` and this `extnetip` extension package, third party IP-Range libraries
+are possible without further low-level IP maths.
 
 ## API
 

@@ -63,6 +63,7 @@ func Prefix(first, last netip.Addr) (prefix netip.Prefix, ok bool) {
 		return
 	}
 
+	// do math in uint128
 	bits, ok := exhibBase.addr.prefixOK(exhibLast.addr)
 	if !ok {
 		return
@@ -72,8 +73,8 @@ func Prefix(first, last netip.Addr) (prefix netip.Prefix, ok bool) {
 		bits -= 96
 	}
 
-	// convert back to netip
-	return netip.PrefixFrom(back(exhibBase), bits), ok
+	// make prefix
+	return netip.PrefixFrom(first, bits), ok
 }
 
 // Prefixes returns the set of netip.Prefix entries that covers the

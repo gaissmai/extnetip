@@ -1,6 +1,7 @@
 package extnetip_test
 
 import (
+	"fmt"
 	"net/netip"
 	"reflect"
 	"testing"
@@ -12,6 +13,50 @@ var (
 	mustAddr   = netip.MustParseAddr
 	mustPrefix = netip.MustParsePrefix
 )
+
+func ExampleRange() {
+	pfx := netip.MustParsePrefix("fe80::/10")
+	start, last := extnetip.Range(pfx)
+
+	fmt.Println("Start:", start)
+	fmt.Println("Last: ", last)
+	// Output:
+	// Start: fe80::
+	// Last:  febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+}
+
+func ExamplePrefix() {
+	start := netip.MustParseAddr("fe80::")
+	last := netip.MustParseAddr("fe80::7")
+	pfx, ok := extnetip.Prefix(start, last)
+
+	fmt.Println("OK:    ", ok)
+	fmt.Println("Prefix:", pfx)
+	// Output:
+	// OK:     true
+	// Prefix: fe80::/125
+}
+
+func ExamplePrefixes() {
+	start := netip.MustParseAddr("10.1.0.0")
+	last := netip.MustParseAddr("10.1.13.233")
+	pfxs := extnetip.Prefixes(start, last)
+
+	fmt.Println("Prefixes:")
+	for _, pfx := range pfxs {
+		fmt.Println(pfx)
+	}
+	// Output:
+	// Prefixes:
+	// 10.1.0.0/21
+	// 10.1.8.0/22
+	// 10.1.12.0/24
+	// 10.1.13.0/25
+	// 10.1.13.128/26
+	// 10.1.13.192/27
+	// 10.1.13.224/29
+	// 10.1.13.232/31
+}
 
 func pfxSlice(pfxStrs ...string) (out []netip.Prefix) {
 	for _, s := range pfxStrs {

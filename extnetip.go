@@ -29,7 +29,7 @@ func Range(p netip.Prefix) (first, last netip.Addr) {
 	if z == z4 {
 		bits += 96
 	}
-	mask := mask128(bits)
+	mask := mask6(bits)
 
 	base128 := exhib.addr.and(mask)
 	last128 := base128.or(mask.not())
@@ -134,7 +134,7 @@ func AppendPrefixes(dst []netip.Prefix, first, last netip.Addr) []netip.Prefix {
 		}
 
 		// Otherwise split the range, make two halves and push it on the stack
-		mask := mask128(bits + 1)
+		mask := mask6(bits + 1)
 
 		// make middle last, set hostbits
 		exhibMidOne := exhibType{exhibFirst.addr.or(mask.not()), exhibFirst.z}

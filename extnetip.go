@@ -9,12 +9,6 @@
 // With these tiny extensions, third party IP-Range libraries,
 // based on the stdlib net/netip, are now possible without
 // further bytes/bits fumbling.
-//
-// Hopefully some day in the future this is no longer needed when
-// the go authors add these tiny missing helper functions to netip,
-// currently (2022) they refused the proposal, see
-//
-//	https://github.com/golang/go/issues/53236
 package extnetip
 
 import "net/netip"

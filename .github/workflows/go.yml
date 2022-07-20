@@ -1,13 +1,14 @@
 name: Go
 
 on:
-  pull_request:
-  
   push:
     tags:
       - v*
     paths:
       - '**.go'
+        
+  pull_request:
+  workflow_dispatch:
     
 jobs:
 

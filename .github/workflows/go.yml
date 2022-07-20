@@ -1,12 +1,14 @@
-name: Test
+name: Go
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ $default-branch ]
+  pull_request:
+    branches: [ $default-branch ]
 
 jobs:
 
-  test:
+  build:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -16,5 +18,8 @@ jobs:
       with:
         go-version: 1.18
 
+    - name: Build
+      run: go build -v ./...
+
     - name: Test
-      run: go test -v ./...
+      run: go test -v ./...  

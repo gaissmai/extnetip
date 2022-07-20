@@ -1,16 +1,14 @@
 name: Go
 
 on:
+  pull_request:
+  
   push:
-    branches: [ master ]
+    tags:
+      - v*
     paths:
       - '**.go'
     
-  pull_request:
-    branches: [ master ]
-    paths:
-      - '**.go'
-
 jobs:
 
   build:

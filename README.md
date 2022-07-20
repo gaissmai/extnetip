@@ -5,7 +5,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/gaissmai/extnetip)](https://goreportcard.com/report/github.com/gaissmai/extnetip)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-`extnetip` is an extension package to the stdlib `net/netip`.
+`package extnetip` is an extension package to the stdlib `net/netip`.
 
 Some missing math functions are added to the closed private internals of `netip.Addr` using unsafe.
 

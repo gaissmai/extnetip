@@ -25,11 +25,7 @@ jobs:
     - name: Build
       run: go build -v ./...
 
-    - name: Test
-      run: go test -v ./...
-      
-
-    - name: Coverage
+    - name: Test Coverage
       run: go test -v -coverprofile=profile.cov ./...
 
     - uses: shogo82148/actions-goveralls@v1

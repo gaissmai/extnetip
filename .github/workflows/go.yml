@@ -28,6 +28,14 @@ jobs:
     - name: Test
       run: go test -v ./...
       
+
+    - name: Coverage
+      run: go test -v -coverprofile=profile.cov ./...
+
+    - uses: shogo82148/actions-goveralls@v1
+      with:
+        path-to-profile: profile.cov
+      
     - name: golangci-lint
       uses: golangci/golangci-lint-action@v3
       with:

@@ -48,7 +48,7 @@ func (a uint128) prefixOK(b uint128) (bits int, ok bool) {
 	}
 	mask := mask6(bits)
 
-	// check if mask applied to base and last results in all zeros and all ones
+	// check if mask applied to first and last results in all zeros and all ones
 	allZero := a.xor(a.and(mask)) == uint128{}
 	allOnes := b.or(mask) == uint128{^uint64(0), ^uint64(0)}
 

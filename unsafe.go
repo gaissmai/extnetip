@@ -12,9 +12,7 @@ type exhibType struct {
 }
 
 // peek the singleton pointer for z4 from netip
-var (
-	z4 uintptr = peek(netip.AddrFrom4([4]byte{})).z
-)
+var z4 uintptr = peek(netip.AddrFrom4([4]byte{})).z
 
 // peek into the private internals of netip.Addr with unsafe.Pointer
 func peek(ip netip.Addr) exhibType {

@@ -1,14 +1,11 @@
-// extnetip is an extension to net/netip.
+// package extnetip is an extension to net/netip.
 //
-// Some missing math functions are added to the closed
-// private internals of netip using unsafe.
+// No additional types are defined, only required auxiliary
+// functions for some existing net/netip types are provided.
 //
-// No further types are defined, only helper functions on
-// existing net/netip types.
-//
-// With these tiny extensions, third party IP-Range libraries,
-// based on the stdlib net/netip, are now possible without
-// further bytes/bits fumbling.
+// With these small extensions, third-party IP range libraries
+// based on stdlib net/netip are now possible without frequent
+// conversion to/from bytes.
 package extnetip
 
 import "net/netip"
@@ -31,11 +28,11 @@ func Range(p netip.Prefix) (first, last netip.Addr) {
 	}
 	mask := mask6(bits)
 
-	base128 := exhib.addr.and(mask)
-	last128 := base128.or(mask.not())
+	first128 := exhib.addr.and(mask)
+	last128 := first128.or(mask.not())
 
 	// convert back to netip.Addr
-	first = back(exhibType{base128, z})
+	first = back(exhibType{first128, z})
 	last = back(exhibType{last128, z})
 
 	return
@@ -55,21 +52,21 @@ func Prefix(first, last netip.Addr) (prefix netip.Prefix, ok bool) {
 	}
 
 	// peek the internals, do math in uint128
-	exhibBase := peek(first)
+	exhibFirst := peek(first)
 	exhibLast := peek(last)
 
 	// IP versions differ?
-	if exhibBase.z != exhibLast.z {
+	if exhibFirst.z != exhibLast.z {
 		return
 	}
 
 	// do math in uint128
-	bits, ok := exhibBase.addr.prefixOK(exhibLast.addr)
+	bits, ok := exhibFirst.addr.prefixOK(exhibLast.addr)
 	if !ok {
 		return
 	}
 
-	if exhibBase.z == z4 {
+	if exhibFirst.z == z4 {
 		bits -= 96
 	}
 
@@ -121,7 +118,7 @@ func AppendPrefixes(dst []netip.Prefix, first, last netip.Addr) []netip.Prefix {
 		exhibFirst := stack[len(stack)-2]
 		stack = stack[:len(stack)-2]
 
-		// are base-last already representing a prefix?
+		// are first-last already representing a prefix?
 		bits, ok := exhibFirst.addr.prefixOK(exhibLast.addr)
 		if ok {
 			if exhibFirst.z == z4 {
@@ -140,7 +137,7 @@ func AppendPrefixes(dst []netip.Prefix, first, last netip.Addr) []netip.Prefix {
 		// make middle last, set hostbits
 		exhibMidOne := exhibType{exhibFirst.addr.or(mask.not()), exhibFirst.z}
 
-		// make middle base, clear hostbits
+		// make middle first, clear hostbits
 		exhibMidTwo := exhibType{exhibLast.addr.and(mask), exhibFirst.z}
 
 		// push both halves (in reverse order, prefixes are then sorted)

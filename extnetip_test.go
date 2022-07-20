@@ -16,19 +16,19 @@ var (
 
 func ExampleRange() {
 	pfx := netip.MustParsePrefix("fe80::/10")
-	start, last := extnetip.Range(pfx)
+	first, last := extnetip.Range(pfx)
 
-	fmt.Println("Start:", start)
+	fmt.Println("First:", first)
 	fmt.Println("Last: ", last)
 	// Output:
-	// Start: fe80::
+	// First: fe80::
 	// Last:  febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff
 }
 
 func ExamplePrefix() {
-	start := netip.MustParseAddr("fe80::")
+	first := netip.MustParseAddr("fe80::")
 	last := netip.MustParseAddr("fe80::7")
-	pfx, ok := extnetip.Prefix(start, last)
+	pfx, ok := extnetip.Prefix(first, last)
 
 	fmt.Println("OK:    ", ok)
 	fmt.Println("Prefix:", pfx)
@@ -38,9 +38,9 @@ func ExamplePrefix() {
 }
 
 func ExamplePrefixes() {
-	start := netip.MustParseAddr("10.1.0.0")
+	first := netip.MustParseAddr("10.1.0.0")
 	last := netip.MustParseAddr("10.1.13.233")
-	pfxs := extnetip.Prefixes(start, last)
+	pfxs := extnetip.Prefixes(first, last)
 
 	fmt.Println("Prefixes:")
 	for _, pfx := range pfxs {
@@ -67,9 +67,9 @@ func pfxSlice(pfxStrs ...string) (out []netip.Prefix) {
 
 func TestRange(t *testing.T) {
 	tests := []struct {
-		in   netip.Prefix
-		base netip.Addr
-		last netip.Addr
+		in    netip.Prefix
+		first netip.Addr
+		last  netip.Addr
 	}{
 		{
 			netip.Prefix{},
@@ -109,9 +109,9 @@ func TestRange(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		base, last := extnetip.Range(tt.in)
-		if base != tt.base {
-			t.Fatalf("Range(%s), got base: %s, expected: %s", tt.in, base, tt.base)
+		first, last := extnetip.Range(tt.in)
+		if first != tt.first {
+			t.Fatalf("Range(%s), got first: %s, expected: %s", tt.in, first, tt.first)
 		}
 		if last != tt.last {
 			t.Fatalf("Range(%s), got last: %s, expected: %s", tt.in, last, tt.last)
@@ -129,6 +129,12 @@ func TestPrefix(t *testing.T) {
 		{
 			netip.Addr{},
 			netip.Addr{},
+			netip.Prefix{},
+			false,
+		},
+		{
+			mustAddr("0.0.0.0"), // wrong versions
+			mustAddr("::"),
 			netip.Prefix{},
 			false,
 		},
@@ -219,25 +225,26 @@ func TestPrefix(t *testing.T) {
 
 func TestPrefixes(t *testing.T) {
 	tests := []struct {
-		base string
-		last string
-		want []netip.Prefix
+		first netip.Addr
+		last  netip.Addr
+		want  []netip.Prefix
 	}{
-		{"0.0.0.1", "0.0.0.0", nil},        // wrong order
-		{"0.0.0.1", "::1", nil},            // wrong versions
-		{"0.0.0.1", "::ffff:1.2.3.4", nil}, // wrong versions
+		{netip.Addr{}, netip.Addr{}, nil},                      // invalid addrs
+		{mustAddr("0.0.0.1"), mustAddr("0.0.0.0"), nil},        // wrong order
+		{mustAddr("0.0.0.1"), mustAddr("::1"), nil},            // wrong versions
+		{mustAddr("0.0.0.1"), mustAddr("::ffff:1.2.3.4"), nil}, // wrong versions
 
-		{"0.0.0.0", "255.255.255.255", pfxSlice("0.0.0.0/0")},
-		{"::", "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", pfxSlice("::/0")},
-		{"::ffff:0.0.0.0", "::ffff:255.255.255.255", pfxSlice("::ffff:0.0.0.0/96")},
+		{mustAddr("0.0.0.0"), mustAddr("255.255.255.255"), pfxSlice("0.0.0.0/0")},
+		{mustAddr("::"), mustAddr("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"), pfxSlice("::/0")},
+		{mustAddr("::ffff:0.0.0.0"), mustAddr("::ffff:255.255.255.255"), pfxSlice("::ffff:0.0.0.0/96")},
 
-		{"10.0.0.0", "10.255.255.255", pfxSlice("10.0.0.0/8")},
-		{"10.0.0.0", "10.127.255.255", pfxSlice("10.0.0.0/9")},
-		{"0.0.0.4", "0.0.0.11", pfxSlice("0.0.0.4/30", "0.0.0.8/30")},
-		{"10.0.0.0", "11.10.255.255", pfxSlice("10.0.0.0/8", "11.0.0.0/13", "11.8.0.0/15", "11.10.0.0/16")},
-		{"fe80::", "fe80::8", pfxSlice("fe80::/125", "fe80::8/128")},
+		{mustAddr("10.0.0.0"), mustAddr("10.255.255.255"), pfxSlice("10.0.0.0/8")},
+		{mustAddr("10.0.0.0"), mustAddr("10.127.255.255"), pfxSlice("10.0.0.0/9")},
+		{mustAddr("0.0.0.4"), mustAddr("0.0.0.11"), pfxSlice("0.0.0.4/30", "0.0.0.8/30")},
+		{mustAddr("10.0.0.0"), mustAddr("11.10.255.255"), pfxSlice("10.0.0.0/8", "11.0.0.0/13", "11.8.0.0/15", "11.10.0.0/16")},
+		{mustAddr("fe80::"), mustAddr("fe80::8"), pfxSlice("fe80::/125", "fe80::8/128")},
 
-		{"1.2.3.5", "5.6.7.8", pfxSlice(
+		{mustAddr("1.2.3.5"), mustAddr("5.6.7.8"), pfxSlice(
 			"1.2.3.5/32",
 			"1.2.3.6/31",
 			"1.2.3.8/29",
@@ -269,7 +276,7 @@ func TestPrefixes(t *testing.T) {
 			"5.6.7.8/32",
 		)},
 
-		{"::", "ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe", pfxSlice(
+		{mustAddr("::"), mustAddr("ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe"), pfxSlice(
 			"::/1",
 			"8000::/2",
 			"c000::/3",
@@ -401,9 +408,9 @@ func TestPrefixes(t *testing.T) {
 		)},
 	}
 	for _, tt := range tests {
-		got := extnetip.Prefixes(mustAddr(tt.base), mustAddr(tt.last))
+		got := extnetip.Prefixes(tt.first, tt.last)
 		if !reflect.DeepEqual(got, tt.want) {
-			t.Errorf("failed %s->%s. got:", tt.base, tt.last)
+			t.Errorf("failed %s->%s. got:", tt.first, tt.last)
 			for _, v := range got {
 				t.Errorf("  %v", v)
 			}

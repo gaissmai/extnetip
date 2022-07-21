@@ -5,14 +5,14 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/gaissmai/extnetip)](https://goreportcard.com/report/github.com/gaissmai/extnetip)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-`package extnetip` is an extension package to the stdlib `net/netip`.
+`package extnetip` is an extension to `net/netip`.
 
-Some missing math functions are added to the closed private internals of `netip.Addr` using unsafe.
+No additional types are defined, only required auxiliary functions for some
+existing net/netip types are provided.
 
-No further types are defined, only helper functions on the existing types `netip.Addr` and `netip.Prefix`.
+With these small extensions, third-party IP range libraries based on stdlib
+`net/netip` are now possible without frequent conversion to/from bytes.
 
-Based on the stdlib `net/netip` and this `extnetip` extension package, third party IP-Range libraries
-are possible without further low-level IP maths.
 
 ## API
 

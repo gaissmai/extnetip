@@ -8,7 +8,7 @@
 `package extnetip` is an extension to `net/netip`.
 
 No additional types are defined, only required auxiliary functions for some
-existing net/netip types are provided.
+existing `net/netip` types are provided.
 
 With these small extensions, third-party IP range libraries based on stdlib
 `net/netip` are now possible without frequent conversion to/from bytes.

@@ -11,7 +11,7 @@ No additional types are defined, only required auxiliary functions for some
 existing `net/netip` types are provided.
 
 With these small extensions, third-party IP range libraries based on stdlib
-`net/netip` are now possible without frequent conversion to/from bytes.
+`net/netip` are now possible without frequent conversion to/from bytes, see also https://github.com/gaissmai/iprange
 
 
 ## API

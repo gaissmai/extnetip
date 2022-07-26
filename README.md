@@ -17,6 +17,8 @@ With these small extensions, third-party IP range libraries based on stdlib
 ## API
 
 ```go
+import "github.com/gaissmai/extnetip"
+
 func Range(p netip.Prefix) (first, last netip.Addr)
 
 func Prefix(first, last netip.Addr) (prefix netip.Prefix, ok bool)
@@ -30,7 +32,3 @@ func AppendPrefixes(dst []netip.Prefix, first, last netip.Addr) []netip.Prefix
 
 Hopefully some day these tiny helper functions are added to `netip` by the stdlib maintainers, currently (2022)
 they refused [the proposal](https://github.com/golang/go/issues/53236).
-
-## Importpath
-
-`import "github.com/gaissmai/extnetip"`

@@ -25,7 +25,7 @@ func Prefix(first, last netip.Addr) (prefix netip.Prefix, ok bool)
 
 func Prefixes(first, last netip.Addr) []netip.Prefix
 
-func AppendPrefixes(dst []netip.Prefix, first, last netip.Addr) []netip.Prefix
+func PrefixesAppend(dst []netip.Prefix, first, last netip.Addr) []netip.Prefix
 ```
 
 ## Future

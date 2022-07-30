@@ -80,15 +80,15 @@ func Prefix(first, last netip.Addr) (prefix netip.Prefix, ok bool) {
 // If first or last are invalid, in the wrong order, or if they're of different
 // address families, then Prefixes returns nil.
 //
-// Prefixes necessarily allocates. See AppendPrefixes for a version that
+// Prefixes necessarily allocates. See PrefixesAppend for a version that
 // uses memory you provide.
 func Prefixes(first, last netip.Addr) []netip.Prefix {
-	return AppendPrefixes(nil, first, last)
+	return PrefixesAppend(nil, first, last)
 }
 
-// AppendPrefixes is an append version of Prefixes. It appends
+// PrefixesAppend is an append version of Prefixes. It appends
 // the netip.Prefix entries to dst that covers the IP range from first to last.
-func AppendPrefixes(dst []netip.Prefix, first, last netip.Addr) []netip.Prefix {
+func PrefixesAppend(dst []netip.Prefix, first, last netip.Addr) []netip.Prefix {
 	if !(first.IsValid() && last.IsValid()) {
 		return nil
 	}

@@ -10,7 +10,7 @@ var mustAddr = netip.MustParseAddr
 
 // is it still safe to use unsafe to peek into the internal netip.Addr representation?
 func TestSizeof(t *testing.T) {
-	s1 := unsafe.Sizeof(exhibType{})
+	s1 := unsafe.Sizeof(addr{})
 	s2 := unsafe.Sizeof(netip.Addr{})
 
 	if s1 != s2 {
@@ -34,25 +34,25 @@ func TestIdempotent(t *testing.T) {
 
 func TestModify(t *testing.T) {
 	p4 := peek(mustAddr("0.0.0.0"))
-	p4.addr.lo++ // add one
+	p4.ip.lo++ // add one
 
 	if back(p4) != mustAddr("0.0.0.1") {
 		t.Fatalf("peek -> add one -> back not as expected")
 	}
 
-	p4.addr.lo-- // sub one
+	p4.ip.lo-- // sub one
 	if back(p4) != mustAddr("0.0.0.0") {
 		t.Fatalf("peek -> sub one -> back not as expected")
 	}
 
 	p6 := peek(mustAddr("::"))
-	p6.addr.lo++ // add one
+	p6.ip.lo++ // add one
 
 	if back(p6) != mustAddr("::1") {
 		t.Fatalf("peek -> add one -> back not as expected")
 	}
 
-	p6.addr.lo-- // sub one
+	p6.ip.lo-- // sub one
 	if back(p6) != mustAddr("::") {
 		t.Fatalf("peek -> sub one -> back not as expected")
 	}

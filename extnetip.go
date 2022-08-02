@@ -19,8 +19,8 @@ func Range(p netip.Prefix) (first, last netip.Addr) {
 	}
 
 	// peek the internals, do math in uint128
-	exhib := peek(p.Addr())
-	z := exhib.z
+	pa := peek(p.Addr())
+	z := pa.z
 
 	bits := p.Bits()
 	if z == z4 {
@@ -28,12 +28,12 @@ func Range(p netip.Prefix) (first, last netip.Addr) {
 	}
 	mask := mask6(bits)
 
-	first128 := exhib.addr.and(mask)
+	first128 := pa.ip.and(mask)
 	last128 := first128.or(mask.not())
 
 	// convert back to netip.Addr
-	first = back(exhibType{first128, z})
-	last = back(exhibType{last128, z})
+	first = back(addr{first128, z})
+	last = back(addr{last128, z})
 
 	return
 }
@@ -52,21 +52,21 @@ func Prefix(first, last netip.Addr) (prefix netip.Prefix, ok bool) {
 	}
 
 	// peek the internals, do math in uint128
-	exhibFirst := peek(first)
-	exhibLast := peek(last)
+	pFirst := peek(first)
+	pLast := peek(last)
 
 	// IP versions differ?
-	if exhibFirst.z != exhibLast.z {
+	if pFirst.z != pLast.z {
 		return
 	}
 
 	// do math in uint128
-	bits, ok := exhibFirst.addr.prefixOK(exhibLast.addr)
+	bits, ok := pFirst.ip.prefixOK(pLast.ip)
 	if !ok {
 		return
 	}
 
-	if exhibFirst.z == z4 {
+	if pFirst.z == z4 {
 		bits -= 96
 	}
 
@@ -97,53 +97,49 @@ func PrefixesAppend(dst []netip.Prefix, first, last netip.Addr) []netip.Prefix {
 	}
 
 	// peek the internals, do math in uint128
-	exhibFirst := peek(first)
-	exhibLast := peek(last)
+	pFirst := peek(first)
+	pLast := peek(last)
 
 	// different IP versions
-	if exhibFirst.z != exhibLast.z {
+	if pFirst.z != pLast.z {
 		return nil
 	}
 
-	// no recursion, use an iterative algo with stack
-	var stack []exhibType
+	return prefixesAppendRec(dst, pFirst, pLast)
+}
 
-	// push, params are the starting point
-	stack = append(stack, exhibFirst, exhibLast)
-
-	for len(stack) > 0 {
-
-		// pop two addresses
-		exhibLast := stack[len(stack)-1]
-		exhibFirst := stack[len(stack)-2]
-		stack = stack[:len(stack)-2]
-
-		// are first-last already representing a prefix?
-		bits, ok := exhibFirst.addr.prefixOK(exhibLast.addr)
-		if ok {
-			if exhibFirst.z == z4 {
-				bits -= 96
-			}
-			// convert back to netip
-			pfx := netip.PrefixFrom(back(exhibFirst), bits)
-
-			dst = append(dst, pfx)
-			continue
+// append prefix if (first, last) represents a whole CIDR, like 10.0.0.0/8
+// (first being 10.0.0.0 and last being 10.255.255.255)
+//
+// Otherwise recursively do both halves.
+//
+// Recursion is here faster than an iterative algo, no bounds checking and no heap escape and
+// btw. the recursion level is max. 254 deep, for IP range: ::1-ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe
+func prefixesAppendRec(dst []netip.Prefix, first, last addr) []netip.Prefix {
+	// are first-last already representing a prefix?
+	bits, ok := first.ip.prefixOK(last.ip)
+	if ok {
+		if first.z == z4 {
+			bits -= 96
 		}
+		// convert back to netip
+		pfx := netip.PrefixFrom(back(first), bits)
 
-		// Otherwise split the range, make two halves and push it on the stack
-		mask := mask6(bits + 1)
-
-		// make middle last, set hostbits
-		exhibMidOne := exhibType{exhibFirst.addr.or(mask.not()), exhibFirst.z}
-
-		// make middle first, clear hostbits
-		exhibMidTwo := exhibType{exhibLast.addr.and(mask), exhibFirst.z}
-
-		// push both halves (in reverse order, prefixes are then sorted)
-		stack = append(stack, exhibMidTwo, exhibLast)
-		stack = append(stack, exhibFirst, exhibMidOne)
+		return append(dst, pfx)
 	}
+
+	// otherwise split the range, make two halves and do both halves recursively
+	mask := mask6(bits + 1)
+
+	// make middle last, set hostbits
+	midOne := addr{first.ip.or(mask.not()), first.z}
+
+	// make middle next, clear hostbits
+	midTwo := addr{last.ip.and(mask), first.z}
+
+	// ... do both halves recursively
+	dst = prefixesAppendRec(dst, first, midOne)
+	dst = prefixesAppendRec(dst, midTwo, last)
 
 	return dst
 }

@@ -1,4 +1,4 @@
-// package extnetip is an extension to net/netip.
+// Package extnetip is an extension to net/netip.
 //
 // No additional types are defined, only required auxiliary
 // functions for some existing net/netip types are provided.

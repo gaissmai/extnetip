@@ -6,7 +6,7 @@
 [![Stand With Ukraine](https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/badges/StandWithUkraine.svg)](https://stand-with-ukraine.pp.ua)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-`package extnetip` is an extension to `net/netip`.
+Package `extnetip` is an extension to `net/netip`.
 
 No additional types are defined, only required auxiliary functions for some
 existing `net/netip` types are provided.

@@ -1,11 +1,12 @@
-// Package extnetip is an extension to net/netip.
+// Package extnetip is an extension to net/netip with
+// a few missing but important auxiliary functions for
+// converting IP-prefixes to IP-ranges and vice versa.
 //
-// No additional types are defined, only required auxiliary
-// functions for some existing net/netip types are provided.
+// The functions are effectively performed in uint128 space,
+// no conversions from/to bytes are performed.
 //
-// With these small extensions, third-party IP range libraries
-// based on stdlib net/netip are now possible without frequent
-// conversion to/from bytes.
+// With these extensions to net/netip, third-party IP-range
+// libraries become easily possible.
 package extnetip
 
 import "net/netip"
@@ -70,7 +71,7 @@ func Prefix(first, last netip.Addr) (prefix netip.Prefix, ok bool) {
 		bits -= 96
 	}
 
-	// make prefix
+	// make prefix, possible zone gets dropped
 	return netip.PrefixFrom(first, bits), ok
 }
 

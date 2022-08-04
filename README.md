@@ -6,14 +6,15 @@
 [![Stand With Ukraine](https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/badges/StandWithUkraine.svg)](https://stand-with-ukraine.pp.ua)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Package `extnetip` is an extension to `net/netip`.
+Package `extnetip` is an extension to `net/netip` with
+a few missing but important auxiliary functions for
+converting IP-prefixes to IP-ranges and vice versa.
 
-No additional types are defined, only required auxiliary functions for some
-existing `net/netip` types are provided.
+The functions are effectively performed in uint128 space,
+no conversions from/to bytes are performed.
 
-With these small extensions, third-party IP range libraries based on stdlib
-`net/netip` are now possible without frequent conversion to/from bytes, see also https://github.com/gaissmai/iprange
-
+With these extensions to net/netip, third-party IP-range
+libraries become easily possible.
 
 ## API
 

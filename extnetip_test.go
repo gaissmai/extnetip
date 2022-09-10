@@ -66,6 +66,7 @@ func pfxSlice(pfxStrs ...string) (out []netip.Prefix) {
 }
 
 func TestRange(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in    netip.Prefix
 		first netip.Addr
@@ -120,6 +121,7 @@ func TestRange(t *testing.T) {
 }
 
 func TestPrefix(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		ip1 netip.Addr
 		ip2 netip.Addr
@@ -224,6 +226,7 @@ func TestPrefix(t *testing.T) {
 }
 
 func TestPrefixes(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		first netip.Addr
 		last  netip.Addr

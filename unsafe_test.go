@@ -21,6 +21,7 @@ func TestSizeof(t *testing.T) {
 }
 
 func TestIdempotent(t *testing.T) {
+	t.Parallel()
 	v4 := mustAddr("0.0.0.0")
 	if back(peek(v4)) != v4 {
 		t.Fatalf("back(peek(ip)) isn't idempotent")
@@ -33,6 +34,7 @@ func TestIdempotent(t *testing.T) {
 }
 
 func TestModify(t *testing.T) {
+	t.Parallel()
 	p4 := peek(mustAddr("0.0.0.0"))
 	p4.ip.lo++ // add one
 

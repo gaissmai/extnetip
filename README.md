@@ -10,9 +10,6 @@ Package `extnetip` is an extension to `net/netip` with
 a few missing but important auxiliary functions for
 converting IP-prefixes to IP-ranges and vice versa.
 
-The functions are effectively performed in uint128 space,
-no conversions from/to bytes are performed.
-
 With these extensions to net/netip, third-party IP-range
 libraries become easily possible.
 

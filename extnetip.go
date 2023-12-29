@@ -21,10 +21,9 @@ func Range(p netip.Prefix) (first, last netip.Addr) {
 
 	// peek the internals, do math in uint128
 	pa := peek(p.Addr())
-	z := pa.z
 
 	bits := p.Bits()
-	if z == z4 {
+	if pa.is4 {
 		bits += 96
 	}
 	mask := mask6(bits)
@@ -33,8 +32,8 @@ func Range(p netip.Prefix) (first, last netip.Addr) {
 	last128 := first128.or(mask.not())
 
 	// convert back to netip.Addr
-	first = back(addr{first128, z})
-	last = back(addr{last128, z})
+	first = back(addr{first128, pa.is4})
+	last = back(addr{last128, pa.is4})
 
 	return
 }
@@ -57,7 +56,7 @@ func Prefix(first, last netip.Addr) (prefix netip.Prefix, ok bool) {
 	pLast := peek(last)
 
 	// IP versions differ?
-	if pFirst.z != pLast.z {
+	if pFirst.is4 != pLast.is4 {
 		return
 	}
 
@@ -67,7 +66,7 @@ func Prefix(first, last netip.Addr) (prefix netip.Prefix, ok bool) {
 		return
 	}
 
-	if pFirst.z == z4 {
+	if pFirst.is4 {
 		bits -= 96
 	}
 
@@ -102,7 +101,7 @@ func PrefixesAppend(dst []netip.Prefix, first, last netip.Addr) []netip.Prefix {
 	pLast := peek(last)
 
 	// different IP versions
-	if pFirst.z != pLast.z {
+	if pFirst.is4 != pLast.is4 {
 		return nil
 	}
 
@@ -120,7 +119,7 @@ func prefixesAppendRec(dst []netip.Prefix, first, last addr) []netip.Prefix {
 	// are first-last already representing a prefix?
 	bits, ok := first.ip.prefixOK(last.ip)
 	if ok {
-		if first.z == z4 {
+		if first.is4 {
 			bits -= 96
 		}
 		// convert back to netip
@@ -133,10 +132,10 @@ func prefixesAppendRec(dst []netip.Prefix, first, last addr) []netip.Prefix {
 	mask := mask6(bits + 1)
 
 	// make middle last, set hostbits
-	midOne := addr{first.ip.or(mask.not()), first.z}
+	midOne := addr{first.ip.or(mask.not()), first.is4}
 
 	// make middle next, clear hostbits
-	midTwo := addr{last.ip.and(mask), first.z}
+	midTwo := addr{last.ip.and(mask), first.is4}
 
 	// ... do both halves recursively
 	dst = prefixesAppendRec(dst, first, midOne)

@@ -1,25 +1,35 @@
 package extnetip
 
 import (
+	"encoding/binary"
 	"net/netip"
-	"unsafe"
 )
 
-// addr is a struct for unsafe peeks into netip.Addr for uint128 math calculations.
+// addr is a struct for peeks into netip.Addr for uint128 math calculations.
 type addr struct {
-	ip uint128
-	z  uintptr
+	ip  uint128
+	is4 bool
 }
 
-// peek the singleton pointer for z4 from netip
-var z4 uintptr = peek(netip.AddrFrom4([4]byte{})).z
+func peek(a netip.Addr) (b addr) {
+	b.is4 = a.Is4()
 
-// peek into the private internals of netip.Addr with unsafe.Pointer
-func peek(a netip.Addr) addr {
-	return *(*addr)(unsafe.Pointer(&a))
+	raw := a.As16()
+	b.ip.hi = binary.BigEndian.Uint64(raw[:8])
+	b.ip.lo = binary.BigEndian.Uint64(raw[8:])
+	return
 }
 
-// back conversion to netip.Addr
 func back(a addr) netip.Addr {
-	return *(*netip.Addr)(unsafe.Pointer(&a))
+	var a6 [16]byte
+	binary.BigEndian.PutUint64(a6[:8], a.ip.hi)
+	binary.BigEndian.PutUint64(a6[8:], a.ip.lo)
+
+	if a.is4 {
+		// convert slice to array pointer
+		a4 := (*[4]byte)(a6[12:])
+		return netip.AddrFrom4(*a4)
+	}
+
+	return netip.AddrFrom16(a6)
 }

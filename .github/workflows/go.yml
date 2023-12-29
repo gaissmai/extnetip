@@ -1,39 +1,58 @@
 name: CI
-
 on:
   push:
-    branches: [master]
+    branches: ["main", "devel"]
     paths:
-      - '**.go'
-      - '**.yml'
-        
+    - '**.go'
+    - '**.yml'
   pull_request:
-  workflow_dispatch:
-    
-jobs:
+    branches: ["main"]
 
-  build:
+jobs:
+  test:
+    strategy:
+      matrix:
+        go-version: ['stable']
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go-version }}
+      - uses: actions/checkout@v3
+      - run: go test -v ./...
+
+  govulncheck:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+      - uses: golang/govulncheck-action@v1
+        with:
+          check-latest: true
 
-    - name: Set up Go
-      uses: actions/setup-go@v3
-      with:
-        go-version: 1.18
-        check-latest: true
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v4
+        with:
+          check-latest: true
 
-    - name: Build
-      run: go build -v ./...
+      - name: Test Coverage
+        run: go test -v -coverprofile=profile.cov ./...
 
-    - name: Test Coverage
-      run: go test -v -coverprofile=profile.cov ./...
+      - uses: shogo82148/actions-goveralls@v1
+        with:
+          path-to-profile: profile.cov
 
-    - uses: shogo82148/actions-goveralls@v1
-      with:
-        path-to-profile: profile.cov
-      
-    - name: golangci-lint
-      uses: golangci/golangci-lint-action@v3
-      with:
-        version: latest
+  linting:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v4
+        with:
+          check-latest: true
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: latest

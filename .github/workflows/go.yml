@@ -1,7 +1,7 @@
 name: CI
 on:
   push:
-    branches: ["master", "main", "devel"]
+    branches: ["master", "main"]
     paths:
     - '**.go'
     - '**.yml'

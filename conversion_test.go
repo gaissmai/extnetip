@@ -7,6 +7,46 @@ import (
 
 var mustAddr = netip.MustParseAddr
 
+var (
+	addrSink      addr
+	netipAddrSink netip.Addr
+)
+
+func BenchmarkConversion(b *testing.B) {
+	v4 := mustAddr("0.0.0.0")
+	v6 := mustAddr("::")
+	addrV4 := peek(v4)
+	addrV6 := peek(v6)
+
+	b.Run("peek v4", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			addrSink = peek(v4)
+		}
+	})
+
+	b.Run("peek v6", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			addrSink = peek(v6)
+		}
+	})
+
+	b.Run("back v4", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			netipAddrSink = back(addrV4)
+		}
+	})
+
+	b.Run("back v6", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			netipAddrSink = back(addrV6)
+		}
+	})
+}
+
 func TestIdempotent(t *testing.T) {
 	t.Parallel()
 	v4 := mustAddr("0.0.0.0")

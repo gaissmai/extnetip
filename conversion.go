@@ -11,25 +11,25 @@ type addr struct {
 	is4 bool
 }
 
-func peek(a netip.Addr) (b addr) {
+func peek(a netip.Addr) addr {
+	var b addr
 	b.is4 = a.Is4()
 
-	raw := a.As16()
-	b.ip.hi = binary.BigEndian.Uint64(raw[:8])
-	b.ip.lo = binary.BigEndian.Uint64(raw[8:])
-	return
+	a16 := a.As16()
+	b.ip.hi = binary.BigEndian.Uint64(a16[:8])
+	b.ip.lo = binary.BigEndian.Uint64(a16[8:])
+	return b
 }
 
 func back(a addr) netip.Addr {
-	var a6 [16]byte
-	binary.BigEndian.PutUint64(a6[:8], a.ip.hi)
-	binary.BigEndian.PutUint64(a6[8:], a.ip.lo)
+	var a16 [16]byte
+	binary.BigEndian.PutUint64(a16[:8], a.ip.hi)
+	binary.BigEndian.PutUint64(a16[8:], a.ip.lo)
 
 	if a.is4 {
-		// convert slice to array pointer
-		a4 := (*[4]byte)(a6[12:])
-		return netip.AddrFrom4(*a4)
+		// slice it and convert it back to array on the fly
+		return netip.AddrFrom4(*(*[4]byte)(a16[12:]))
 	}
 
-	return netip.AddrFrom16(a6)
+	return netip.AddrFrom16(a16)
 }

@@ -3,22 +3,9 @@ package extnetip
 import (
 	"net/netip"
 	"testing"
-	"unsafe"
 )
 
 var mustAddr = netip.MustParseAddr
-
-// is it still safe to use unsafe to peek into the internal netip.Addr representation?
-func TestSizeof(t *testing.T) {
-	s1 := unsafe.Sizeof(addr{})
-	s2 := unsafe.Sizeof(netip.Addr{})
-
-	if s1 != s2 {
-		t.Fatalf(
-			"Address representations differ in size, (%v != %v), maybe internal representation for netip.Addr has changed.",
-			s1, s2)
-	}
-}
 
 func TestIdempotent(t *testing.T) {
 	t.Parallel()

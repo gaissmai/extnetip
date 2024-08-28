@@ -31,5 +31,4 @@ func PrefixesAppend(dst []netip.Prefix, first, last netip.Addr) []netip.Prefix
 
 ## Future
 
-Hopefully some day these tiny helper functions are added to `netip` by the stdlib maintainers, currently (2022)
-they refused [the proposal](https://github.com/golang/go/issues/53236).
+Hopefully some day these needed helper functions are added to `netip` by the stdlib maintainers.

@@ -27,8 +27,7 @@ func back(a addr) netip.Addr {
 	binary.BigEndian.PutUint64(a16[8:], a.ip.lo)
 
 	if a.is4 {
-		// slice it and convert it back to array on the fly
-		return netip.AddrFrom4(*(*[4]byte)(a16[12:]))
+		return netip.AddrFrom4([4]byte(a16[12:]))
 	}
 
 	return netip.AddrFrom16(a16)

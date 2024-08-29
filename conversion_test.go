@@ -20,28 +20,28 @@ func BenchmarkConversion(b *testing.B) {
 
 	b.Run("peek v4", func(b *testing.B) {
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			addrSink = peek(v4)
 		}
 	})
 
 	b.Run("peek v6", func(b *testing.B) {
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			addrSink = peek(v6)
 		}
 	})
 
 	b.Run("back v4", func(b *testing.B) {
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			netipAddrSink = back(addrV4)
 		}
 	})
 
 	b.Run("back v6", func(b *testing.B) {
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			netipAddrSink = back(addrV6)
 		}
 	})

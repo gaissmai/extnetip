@@ -28,6 +28,7 @@ jobs:
       - uses: golang/govulncheck-action@v1
         with:
           check-latest: true
+          go-version-file: go.mod
 
   coverage:
     runs-on: ubuntu-latest

@@ -11,7 +11,7 @@ package extnetip
 
 import "net/netip"
 
-// Range returns the inclusive range of IP addresses that p covers.
+// Range returns the inclusive range of IP addresses [first, last] that p covers.
 //
 // If p is invalid, Range returns the zero values.
 func Range(p netip.Prefix) (first, last netip.Addr) {
@@ -44,34 +44,83 @@ func Range(p netip.Prefix) (first, last netip.Addr) {
 // If first or last are not valid, in the wrong order or not exactly
 // equal to one prefix, ok is false.
 func Prefix(first, last netip.Addr) (prefix netip.Prefix, ok bool) {
-	if !(first.IsValid() && last.IsValid()) {
+	// wrong input
+	switch {
+	case !(first.IsValid() && last.IsValid()): // invalid IP
 		return
-	}
-	if last.Less(first) {
+	case first.Is4() != last.Is4(): // different version
+		return
+	case last.Less(first): // wrong order
 		return
 	}
 
 	// peek the internals, do math in uint128
-	pFirst := peek(first)
-	pLast := peek(last)
+	a := peek(first)
+	b := peek(last)
 
 	// IP versions differ?
-	if pFirst.is4 != pLast.is4 {
+	if a.is4 != b.is4 {
 		return
 	}
 
 	// do math in uint128
-	bits, ok := pFirst.ip.prefixOK(pLast.ip)
+	bits, ok := a.ip.prefixOK(b.ip)
 	if !ok {
 		return
 	}
 
-	if pFirst.is4 {
+	if a.is4 {
 		bits -= 96
 	}
 
 	// make prefix, possible zone gets dropped
 	return netip.PrefixFrom(first, bits), ok
+}
+
+// All returns an iterator over the set of prefixes that covers the range from [first, last].
+//
+// If first or last are not valid, in the wrong order or not of the same version, the set is empty.
+func All(first, last netip.Addr) func(yield func(netip.Prefix) bool) {
+	return func(yield func(netip.Prefix) bool) {
+		// wrong input
+		switch {
+		case !(first.IsValid() && last.IsValid()): // invalid IP
+			return
+		case first.Is4() != last.Is4(): // different version
+			return
+		case last.Less(first): // wrong order
+			return
+		}
+
+		allRec(peek(first), peek(last), yield)
+	}
+}
+
+// allRec yields the prefix if [a, b] represents a whole CIDR, like 10.0.0.0/8
+// (first being 10.0.0.0 and last being 10.255.255.255)
+//
+// Otherwise recursively do both halves. All bit fiddling calculations are done in the uint128 space.
+func allRec(a, b addr, yield func(netip.Prefix) bool) bool {
+	// recursion stop condition, [a,b] already representing a prefix
+	bits, ok := a.ip.prefixOK(b.ip)
+	if ok {
+		if a.is4 {
+			bits -= 96
+		}
+		return yield(netip.PrefixFrom(back(a), bits))
+	}
+
+	// otherwise split the range, make two halves and do both halves recursively
+	mask := mask6(bits + 1)
+
+	// set hostbits, make middle left
+	m1 := addr{a.ip.or(mask.not()), a.is4}
+
+	// clear hostbits, make middle right
+	m2 := addr{b.ip.and(mask), a.is4}
+
+	// ... do both halves recursively
+	return allRec(a, m1, yield) && allRec(m2, b, yield)
 }
 
 // Prefixes returns the set of netip.Prefix entries that covers the
@@ -80,66 +129,7 @@ func Prefix(first, last netip.Addr) (prefix netip.Prefix, ok bool) {
 // If first or last are invalid, in the wrong order, or if they're of different
 // address families, then Prefixes returns nil.
 //
-// Prefixes necessarily allocates. See PrefixesAppend for a version that
-// uses memory you provide.
+// Deprecated: Prefixes is deprecated. Use the iterator version [All] instead.
 func Prefixes(first, last netip.Addr) []netip.Prefix {
 	return PrefixesAppend(nil, first, last)
-}
-
-// PrefixesAppend is an append version of Prefixes. It appends
-// the netip.Prefix entries to dst that covers the IP range from first to last.
-func PrefixesAppend(dst []netip.Prefix, first, last netip.Addr) []netip.Prefix {
-	if !(first.IsValid() && last.IsValid()) {
-		return nil
-	}
-	if last.Less(first) {
-		return nil
-	}
-
-	// peek the internals, do math in uint128
-	pFirst := peek(first)
-	pLast := peek(last)
-
-	// different IP versions
-	if pFirst.is4 != pLast.is4 {
-		return nil
-	}
-
-	return prefixesAppendRec(dst, pFirst, pLast)
-}
-
-// append prefix if (first, last) represents a whole CIDR, like 10.0.0.0/8
-// (first being 10.0.0.0 and last being 10.255.255.255)
-//
-// Otherwise recursively do both halves.
-//
-// Recursion is here faster than an iterative algo, no bounds checking and no heap escape and
-// btw. the recursion level is max. 254 deep, for IP range: ::1-ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe
-func prefixesAppendRec(dst []netip.Prefix, first, last addr) []netip.Prefix {
-	// are first-last already representing a prefix?
-	bits, ok := first.ip.prefixOK(last.ip)
-	if ok {
-		if first.is4 {
-			bits -= 96
-		}
-		// convert back to netip
-		pfx := netip.PrefixFrom(back(first), bits)
-
-		return append(dst, pfx)
-	}
-
-	// otherwise split the range, make two halves and do both halves recursively
-	mask := mask6(bits + 1)
-
-	// make middle last, set hostbits
-	midOne := addr{first.ip.or(mask.not()), first.is4}
-
-	// make middle next, clear hostbits
-	midTwo := addr{last.ip.and(mask), first.is4}
-
-	// ... do both halves recursively
-	dst = prefixesAppendRec(dst, first, midOne)
-	dst = prefixesAppendRec(dst, midTwo, last)
-
-	return dst
 }

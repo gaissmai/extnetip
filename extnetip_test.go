@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	mustAddr   = netip.MustParseAddr
-	mustPrefix = netip.MustParsePrefix
+	mpa = netip.MustParseAddr
+	mpp = netip.MustParsePrefix
 )
 
 func ExampleRange() {
@@ -37,30 +37,9 @@ func ExamplePrefix() {
 	// Prefix: fe80::/125
 }
 
-func ExamplePrefixes() {
-	first := netip.MustParseAddr("10.1.0.0")
-	last := netip.MustParseAddr("10.1.13.233")
-	pfxs := extnetip.Prefixes(first, last)
-
-	fmt.Println("Prefixes:")
-	for _, pfx := range pfxs {
-		fmt.Println(pfx)
-	}
-	// Output:
-	// Prefixes:
-	// 10.1.0.0/21
-	// 10.1.8.0/22
-	// 10.1.12.0/24
-	// 10.1.13.0/25
-	// 10.1.13.128/26
-	// 10.1.13.192/27
-	// 10.1.13.224/29
-	// 10.1.13.232/31
-}
-
 func pfxSlice(pfxStrs ...string) (out []netip.Prefix) {
 	for _, s := range pfxStrs {
-		out = append(out, mustPrefix(s))
+		out = append(out, mpp(s))
 	}
 	return
 }
@@ -78,34 +57,34 @@ func TestRange(t *testing.T) {
 			netip.Addr{},
 		},
 		{
-			mustPrefix("0.0.0.0/0"),
-			mustAddr("0.0.0.0"),
-			mustAddr("255.255.255.255"),
+			mpp("0.0.0.0/0"),
+			mpa("0.0.0.0"),
+			mpa("255.255.255.255"),
 		},
 		{
-			mustPrefix("10.0.0.0/8"),
-			mustAddr("10.0.0.0"),
-			mustAddr("10.255.255.255"),
+			mpp("10.0.0.0/8"),
+			mpa("10.0.0.0"),
+			mpa("10.255.255.255"),
 		},
 		{
-			mustPrefix("172.16.0.0/12"),
-			mustAddr("172.16.0.0"),
-			mustAddr("172.31.255.255"),
+			mpp("172.16.0.0/12"),
+			mpa("172.16.0.0"),
+			mpa("172.31.255.255"),
 		},
 		{
-			mustPrefix("::ffff:0.0.0.0/96"),
-			mustAddr("::ffff:0.0.0.0"),
-			mustAddr("::ffff:255.255.255.255"),
+			mpp("::ffff:0.0.0.0/96"),
+			mpa("::ffff:0.0.0.0"),
+			mpa("::ffff:255.255.255.255"),
 		},
 		{
-			mustPrefix("::/0"),
-			mustAddr("::"),
-			mustAddr("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"),
+			mpp("::/0"),
+			mpa("::"),
+			mpa("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"),
 		},
 		{
-			mustPrefix("fe80::/10"),
-			mustAddr("fe80::"),
-			mustAddr("febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff"),
+			mpp("fe80::/10"),
+			mpa("fe80::"),
+			mpa("febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff"),
 		},
 	}
 
@@ -135,81 +114,81 @@ func TestPrefix(t *testing.T) {
 			false,
 		},
 		{
-			mustAddr("0.0.0.0"), // wrong versions
-			mustAddr("::"),
+			mpa("0.0.0.0"), // wrong versions
+			mpa("::"),
 			netip.Prefix{},
 			false,
 		},
 		{
-			mustAddr("0.0.0.1"), // wrong order
-			mustAddr("0.0.0.0"),
+			mpa("0.0.0.1"), // wrong order
+			mpa("0.0.0.0"),
 			netip.Prefix{},
 			false,
 		},
 		{
-			mustAddr("0.0.0.0"),
-			mustAddr("0.0.0.0"),
-			mustPrefix("0.0.0.0/32"),
+			mpa("0.0.0.0"),
+			mpa("0.0.0.0"),
+			mpp("0.0.0.0/32"),
 			true,
 		},
 		{
-			mustAddr("::"),
-			mustAddr("::"),
-			mustPrefix("::/128"),
+			mpa("::"),
+			mpa("::"),
+			mpp("::/128"),
 			true,
 		},
 		{
-			mustAddr("0.0.0.0"),
-			mustAddr("0.0.0.5"),
+			mpa("0.0.0.0"),
+			mpa("0.0.0.5"),
 			netip.Prefix{},
 			false,
 		},
 		{
-			mustAddr("::"),
-			mustAddr("::5"),
+			mpa("::"),
+			mpa("::5"),
 			netip.Prefix{},
 			false,
 		},
 		{
-			mustAddr("0.0.0.0"),
-			mustAddr("0.0.0.3"),
-			mustPrefix("0.0.0.0/30"),
+			mpa("0.0.0.0"),
+			mpa("0.0.0.3"),
+			mpp("0.0.0.0/30"),
 			true,
 		},
 		{
-			mustAddr("0.0.0.0"),
-			mustAddr("255.255.255.255"),
-			mustPrefix("0.0.0.0/0"),
+			mpa("0.0.0.0"),
+			mpa("255.255.255.255"),
+			mpp("0.0.0.0/0"),
 			true,
 		},
 		{
-			mustAddr("10.0.0.0"),
-			mustAddr("10.255.255.255"),
-			mustPrefix("10.0.0.0/8"),
+			mpa("10.0.0.0"),
+			mpa("10.255.255.255"),
+			mpp("10.0.0.0/8"),
 			true,
 		},
 		{
-			mustAddr("172.16.0.0"),
-			mustAddr("172.31.255.255"),
-			mustPrefix("172.16.0.0/12"),
+			mpa("172.16.0.0"),
+			mpa("172.31.255.255"),
+			mpp("172.16.0.0/12"),
 			true,
 		},
 		{
-			mustAddr("::ffff:0.0.0.0"),
-			mustAddr("::ffff:255.255.255.255"),
-			mustPrefix("::ffff:0.0.0.0/96"),
+			mpa("::ffff:0.0.0.0"),
+			mpa("::ffff:255.255.255.255"),
+			mpp("::ffff:0.0.0.0/96"),
 			true,
 		},
 		{
-			mustAddr("::"),
-			mustAddr("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"),
-			mustPrefix("::/0"),
+			mpa("::"),
+			mpa("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"),
+			mpp("::/0"),
 			true,
 		},
 		{
-			mustAddr("fe80::"),
-			mustAddr("febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff"),
-			mustPrefix("fe80::/10"),
+			mpa("fe80::"),
+			mpa("febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff"),
+			mpp("fe80::/10"),
 			true,
 		},
 	}
@@ -225,29 +204,29 @@ func TestPrefix(t *testing.T) {
 	}
 }
 
-func TestPrefixes(t *testing.T) {
+func TestAll(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		first netip.Addr
 		last  netip.Addr
 		want  []netip.Prefix
 	}{
-		{netip.Addr{}, netip.Addr{}, nil},                      // invalid addrs
-		{mustAddr("0.0.0.1"), mustAddr("0.0.0.0"), nil},        // wrong order
-		{mustAddr("0.0.0.1"), mustAddr("::1"), nil},            // wrong versions
-		{mustAddr("0.0.0.1"), mustAddr("::ffff:1.2.3.4"), nil}, // wrong versions
+		{netip.Addr{}, netip.Addr{}, nil},            // invalid addrs
+		{mpa("0.0.0.1"), mpa("0.0.0.0"), nil},        // wrong order
+		{mpa("0.0.0.1"), mpa("::1"), nil},            // wrong versions
+		{mpa("0.0.0.1"), mpa("::ffff:1.2.3.4"), nil}, // wrong versions
 
-		{mustAddr("0.0.0.0"), mustAddr("255.255.255.255"), pfxSlice("0.0.0.0/0")},
-		{mustAddr("::"), mustAddr("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"), pfxSlice("::/0")},
-		{mustAddr("::ffff:0.0.0.0"), mustAddr("::ffff:255.255.255.255"), pfxSlice("::ffff:0.0.0.0/96")},
+		{mpa("0.0.0.0"), mpa("255.255.255.255"), pfxSlice("0.0.0.0/0")},
+		{mpa("::"), mpa("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"), pfxSlice("::/0")},
+		{mpa("::ffff:0.0.0.0"), mpa("::ffff:255.255.255.255"), pfxSlice("::ffff:0.0.0.0/96")},
 
-		{mustAddr("10.0.0.0"), mustAddr("10.255.255.255"), pfxSlice("10.0.0.0/8")},
-		{mustAddr("10.0.0.0"), mustAddr("10.127.255.255"), pfxSlice("10.0.0.0/9")},
-		{mustAddr("0.0.0.4"), mustAddr("0.0.0.11"), pfxSlice("0.0.0.4/30", "0.0.0.8/30")},
-		{mustAddr("10.0.0.0"), mustAddr("11.10.255.255"), pfxSlice("10.0.0.0/8", "11.0.0.0/13", "11.8.0.0/15", "11.10.0.0/16")},
-		{mustAddr("fe80::"), mustAddr("fe80::8"), pfxSlice("fe80::/125", "fe80::8/128")},
+		{mpa("10.0.0.0"), mpa("10.255.255.255"), pfxSlice("10.0.0.0/8")},
+		{mpa("10.0.0.0"), mpa("10.127.255.255"), pfxSlice("10.0.0.0/9")},
+		{mpa("0.0.0.4"), mpa("0.0.0.11"), pfxSlice("0.0.0.4/30", "0.0.0.8/30")},
+		{mpa("10.0.0.0"), mpa("11.10.255.255"), pfxSlice("10.0.0.0/8", "11.0.0.0/13", "11.8.0.0/15", "11.10.0.0/16")},
+		{mpa("fe80::"), mpa("fe80::8"), pfxSlice("fe80::/125", "fe80::8/128")},
 
-		{mustAddr("0.0.0.1"), mustAddr("255.255.255.254"), pfxSlice(
+		{mpa("0.0.0.1"), mpa("255.255.255.254"), pfxSlice(
 			"0.0.0.1/32",
 			"0.0.0.2/31",
 			"0.0.0.4/30",
@@ -312,7 +291,7 @@ func TestPrefixes(t *testing.T) {
 			"255.255.255.254/32",
 		)},
 
-		{mustAddr("::1"), mustAddr("ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe"), pfxSlice(
+		{mpa("::1"), mpa("ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe"), pfxSlice(
 			"::1/128",
 			"::2/127",
 			"::4/126",
@@ -569,8 +548,16 @@ func TestPrefixes(t *testing.T) {
 			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe/128",
 		)},
 	}
+
 	for _, tt := range tests {
-		got := extnetip.Prefixes(tt.first, tt.last)
+		var got []netip.Prefix
+
+		iterFunc := extnetip.All(tt.first, tt.last)
+		iterFunc(func(pfx netip.Prefix) bool {
+			got = append(got, pfx)
+			return true
+		})
+
 		if !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("failed %s->%s. got:", tt.first, tt.last)
 			for _, v := range got {

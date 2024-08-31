@@ -9,7 +9,10 @@
 // libraries become easily possible.
 package extnetip
 
-import "net/netip"
+import (
+	"iter"
+	"net/netip"
+)
 
 // Range returns the inclusive range of IP addresses [first, last] that p covers.
 //
@@ -80,7 +83,7 @@ func Prefix(first, last netip.Addr) (prefix netip.Prefix, ok bool) {
 // All returns an iterator over the set of prefixes that covers the range from [first, last].
 //
 // If first or last are not valid, in the wrong order or not of the same version, the set is empty.
-func All(first, last netip.Addr) func(yield func(netip.Prefix) bool) {
+func All(first, last netip.Addr) iter.Seq[netip.Prefix] {
 	return func(yield func(netip.Prefix) bool) {
 		// wrong input
 		switch {
@@ -132,4 +135,15 @@ func allRec(a, b addr, yield func(netip.Prefix) bool) bool {
 // Deprecated: Prefixes is deprecated. Use the iterator version [All] instead.
 func Prefixes(first, last netip.Addr) []netip.Prefix {
 	return PrefixesAppend(nil, first, last)
+}
+
+// PrefixesAppend is an append version of Prefixes. It appends
+// the netip.Prefix entries to dst that covers the IP range from first to last.
+//
+// Deprecated: PrefixesAppend is deprecated. Use the iterator version [All] instead.
+func PrefixesAppend(dst []netip.Prefix, first, last netip.Addr) []netip.Prefix {
+	for pfx := range All(first, last) {
+		dst = append(dst, pfx)
+	}
+	return dst
 }

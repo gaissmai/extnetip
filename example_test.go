@@ -1,5 +1,3 @@
-//go:build go1.23
-
 package extnetip_test
 
 import (
@@ -8,6 +6,44 @@ import (
 
 	"github.com/gaissmai/extnetip"
 )
+
+func ExampleRange() {
+	pfx := netip.MustParsePrefix("fe80::/10")
+	first, last := extnetip.Range(pfx)
+
+	fmt.Println("First:", first)
+	fmt.Println("Last: ", last)
+	// Output:
+	// First: fe80::
+	// Last:  febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+}
+
+func ExamplePrefix() {
+	first := netip.MustParseAddr("fe80::")
+	last := netip.MustParseAddr("fe80::7")
+
+	pfx, ok := extnetip.Prefix(first, last)
+
+	fmt.Println("OK:    ", ok)
+	fmt.Println("Prefix:", pfx)
+
+	fmt.Println()
+
+	first = netip.MustParseAddr("10.0.0.1")
+	last = netip.MustParseAddr("10.0.0.19")
+
+	pfx, ok = extnetip.Prefix(first, last)
+
+	fmt.Println("OK:    ", ok)
+	fmt.Println("Prefix:", pfx)
+
+	// Output:
+	// OK:     true
+	// Prefix: fe80::/125
+	//
+	// OK:     false
+	// Prefix: invalid Prefix
+}
 
 func ExampleAll() {
 	first := netip.MustParseAddr("10.1.0.0")

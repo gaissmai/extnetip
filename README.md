@@ -12,7 +12,7 @@ Package `extnetip` is an extension to `net/netip` with
 a few missing but important auxiliary functions for
 converting IP-prefixes to IP-ranges and vice versa.
 
-With these extensions to net/netip, third-party IP-range
+With these extensions to `net/netip`, third-party IP-range
 libraries become easily possible.
 
 ## API
@@ -22,7 +22,7 @@ import "github.com/gaissmai/extnetip"
 
 func Range(p netip.Prefix) (first, last netip.Addr)
 func Prefix(first, last netip.Addr) (prefix netip.Prefix, ok bool)
-func All(first, last netip.Addr) func(yield func(netip.Prefix) bool)
+func All(first, last netip.Addr) iter.Seq[netip.Prefix]
 
 // Deprecated: func Prefixes(first, last netip.Addr) []netip.Prefix
 // Deprecated: func PrefixesAppend(dst []netip.Prefix, first, last netip.Addr) []netip.Prefix

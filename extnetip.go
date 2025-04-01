@@ -49,7 +49,7 @@ func Range(p netip.Prefix) (first, last netip.Addr) {
 func Prefix(first, last netip.Addr) (prefix netip.Prefix, ok bool) {
 	// wrong input
 	switch {
-	case !(first.IsValid() && last.IsValid()): // invalid IP
+	case !first.IsValid() || !last.IsValid(): // invalid IP
 		return
 	case first.Is4() != last.Is4(): // different version
 		return
@@ -87,7 +87,7 @@ func All(first, last netip.Addr) iter.Seq[netip.Prefix] {
 	return func(yield func(netip.Prefix) bool) {
 		// wrong input
 		switch {
-		case !(first.IsValid() && last.IsValid()): // invalid IP
+		case !first.IsValid() || !last.IsValid(): // invalid IP
 			return
 		case first.Is4() != last.Is4(): // different version
 			return

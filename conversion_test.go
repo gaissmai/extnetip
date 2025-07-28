@@ -5,7 +5,10 @@ import (
 	"testing"
 )
 
-var mustAddr = netip.MustParseAddr
+var (
+	mustAddr = netip.MustParseAddr
+	mustPfx  = netip.MustParsePrefix
+)
 
 var (
 	addrSink      addr

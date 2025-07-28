@@ -9,30 +9,60 @@ func BenchmarkConversion(b *testing.B) {
 	addrV6 := peek(v6)
 
 	b.Run("peek v4", func(b *testing.B) {
-		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			addrSink = peek(v4)
 		}
 	})
 
 	b.Run("peek v6", func(b *testing.B) {
-		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			addrSink = peek(v6)
 		}
 	})
 
 	b.Run("back v4", func(b *testing.B) {
-		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			netipAddrSink = back(addrV4)
 		}
 	})
 
 	b.Run("back v6", func(b *testing.B) {
-		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			netipAddrSink = back(addrV6)
+		}
+	})
+}
+
+func BenchmarkRange(b *testing.B) {
+	v4 := mustPfx("10.1.2.0/24")
+	v6 := mustPfx("2001:db8::/56")
+
+	b.Run("v4", func(b *testing.B) {
+		for b.Loop() {
+			Range(v4)
+		}
+	})
+
+	b.Run("v6", func(b *testing.B) {
+		for b.Loop() {
+			Range(v6)
+		}
+	})
+}
+
+func BenchmarkPrefix(b *testing.B) {
+	first4, last4 := Range(mustPfx("10.1.2.0/24"))
+	first6, last6 := Range(mustPfx("2001:db8::/56"))
+
+	b.Run("v4", func(b *testing.B) {
+		for b.Loop() {
+			Prefix(first4, last4)
+		}
+	})
+
+	b.Run("v6", func(b *testing.B) {
+		for b.Loop() {
+			Prefix(first6, last6)
 		}
 	})
 }

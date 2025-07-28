@@ -41,13 +41,13 @@ func BenchmarkRange(b *testing.B) {
 
 	b.Run("v4", func(b *testing.B) {
 		for b.Loop() {
-			Range(v4)
+			netipAddrSink, netipAddrSink = Range(v4)
 		}
 	})
 
 	b.Run("v6", func(b *testing.B) {
 		for b.Loop() {
-			Range(v6)
+			netipAddrSink, netipAddrSink = Range(v6)
 		}
 	})
 }
@@ -59,13 +59,13 @@ func BenchmarkPrefix(b *testing.B) {
 
 	b.Run("v4", func(b *testing.B) {
 		for b.Loop() {
-			Prefix(first4, last4)
+			netipPrefixSink, boolSink = Prefix(first4, last4)
 		}
 	})
 
 	b.Run("v6", func(b *testing.B) {
 		for b.Loop() {
-			Prefix(first6, last6)
+			netipPrefixSink, boolSink = Prefix(first6, last6)
 		}
 	})
 }

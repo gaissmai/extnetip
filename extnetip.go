@@ -15,6 +15,7 @@ import (
 )
 
 // Range returns the inclusive range of IP addresses [first, last] that p covers.
+// The prefix p does not need to be in canonical form.
 //
 // If p is invalid, Range returns the zero values.
 func Range(p netip.Prefix) (first, last netip.Addr) {
@@ -47,22 +48,22 @@ func Range(p netip.Prefix) (first, last netip.Addr) {
 // If first or last are not valid, in the wrong order or not exactly
 // equal to one prefix, ok is false.
 func Prefix(first, last netip.Addr) (prefix netip.Prefix, ok bool) {
-	// wrong input
-	switch {
-	case !first.IsValid() || !last.IsValid(): // invalid IP
-		return
-	case first.Is4() != last.Is4(): // different version
-		return
-	case last.Less(first): // wrong order
+	// invalid IP
+	if !first.IsValid() || !last.IsValid() {
 		return
 	}
 
-	// peek the internals, do math in uint128
+	// peek the internals
 	a := peek(first)
 	b := peek(last)
 
 	// IP versions differ?
 	if a.is4 != b.is4 {
+		return
+	}
+
+	// first > last
+	if a.ip.compare(b.ip) == 1 {
 		return
 	}
 
@@ -85,17 +86,26 @@ func Prefix(first, last netip.Addr) (prefix netip.Prefix, ok bool) {
 // If first or last are not valid, in the wrong order or not of the same version, the set is empty.
 func All(first, last netip.Addr) iter.Seq[netip.Prefix] {
 	return func(yield func(netip.Prefix) bool) {
-		// wrong input
-		switch {
-		case !first.IsValid() || !last.IsValid(): // invalid IP
-			return
-		case first.Is4() != last.Is4(): // different version
-			return
-		case last.Less(first): // wrong order
+		// invalid IP
+		if !first.IsValid() || !last.IsValid() {
 			return
 		}
 
-		allRec(peek(first), peek(last), yield)
+		// peek the internals
+		a := peek(first)
+		b := peek(last)
+
+		// IP versions differ?
+		if a.is4 != b.is4 {
+			return
+		}
+
+		// first > last
+		if a.ip.compare(b.ip) == 1 {
+			return
+		}
+
+		allRec(a, b, yield)
 	}
 }
 

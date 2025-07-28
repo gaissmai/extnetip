@@ -54,3 +54,23 @@ func (u uint128) prefixOK(v uint128) (bits int, ok bool) {
 
 	return bits, allZero && allOnes
 }
+
+func (u uint128) compare(v uint128) int {
+	if u.hi > v.hi {
+		return 1
+	}
+	if u.hi < v.hi {
+		return -1
+	}
+
+	// u.hi == v.hi
+	if u.lo > v.lo {
+		return 1
+	}
+	if u.lo < v.lo {
+		return -1
+	}
+
+	// u.hi == v.hi && u.lo == v.lo
+	return 0
+}

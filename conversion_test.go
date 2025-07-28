@@ -11,8 +11,10 @@ var (
 )
 
 var (
-	addrSink      addr
-	netipAddrSink netip.Addr
+	boolSink        bool
+	addrSink        addr
+	netipAddrSink   netip.Addr
+	netipPrefixSink netip.Prefix
 )
 
 func TestIdempotent(t *testing.T) {

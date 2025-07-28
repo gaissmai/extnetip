@@ -2,6 +2,7 @@ package extnetip
 
 import "testing"
 
+//nolint:govet
 func BenchmarkConversion(b *testing.B) {
 	v4 := mustAddr("0.0.0.0")
 	v6 := mustAddr("::")
@@ -33,6 +34,7 @@ func BenchmarkConversion(b *testing.B) {
 	})
 }
 
+//nolint:govet
 func BenchmarkRange(b *testing.B) {
 	v4 := mustPfx("10.1.2.0/24")
 	v6 := mustPfx("2001:db8::/56")
@@ -50,6 +52,7 @@ func BenchmarkRange(b *testing.B) {
 	})
 }
 
+//nolint:govet
 func BenchmarkPrefix(b *testing.B) {
 	first4, last4 := Range(mustPfx("10.1.2.0/24"))
 	first6, last6 := Range(mustPfx("2001:db8::/56"))

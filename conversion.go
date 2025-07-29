@@ -32,7 +32,7 @@ func (a *addr) is4() bool {
 	return a.v4
 }
 
-// peek extracts the raw uint128 representation from a netip.Addr safely.
+// unwrap extracts the raw uint128 representation from a netip.Addr safely.
 //
 // It converts the netip.Addr into a []byte slice representing the IP.
 //
@@ -44,8 +44,10 @@ func (a *addr) is4() bool {
 //
 // This function avoids unsafe.Pointer usage by working explicitly with
 // byte slices and binary decoding.
-func peek(a netip.Addr) (b addr) {
-	ip := a.AsSlice()
+//
+// Precondition: a is a valid IP address.
+func unwrap(a netip.Addr) (b addr) {
+	ip := a.AsSlice() // nil if is a isn't valid!
 
 	if len(ip) == 4 {
 		b.v4 = true
@@ -59,7 +61,7 @@ func peek(a netip.Addr) (b addr) {
 	return b
 }
 
-// back converts an addr back to a netip.Addr using safe conversions via byte arrays.
+// wrap converts an addr back to a netip.Addr using safe conversions via byte arrays.
 //
 // It reconstructs a 16-byte array in big endian encoding from the uint128 value.
 //
@@ -69,7 +71,7 @@ func peek(a netip.Addr) (b addr) {
 // - Otherwise, it returns an IPv6 netip.Addr from the full 16 bytes.
 //
 // This approach is fully safe and compatible with Go standard library interfaces.
-func back(a addr) netip.Addr {
+func wrap(a addr) netip.Addr {
 	var a16 [16]byte
 	binary.BigEndian.PutUint64(a16[8:], a.ip.lo)
 

@@ -44,8 +44,8 @@ var _ = func() bool {
 // z4    - IPv4 address representation
 // z6noz - IPv6 address representation without zone
 var (
-	z4    uintptr = peek(netip.AddrFrom4([4]byte{})).z
-	z6noz uintptr = peek(netip.AddrFrom16([16]byte{})).z
+	z4    uintptr = unwrap(netip.AddrFrom4([4]byte{})).z
+	z6noz uintptr = unwrap(netip.AddrFrom16([16]byte{})).z
 )
 
 // fromUint128 constructs an addr struct from a uint128 IP representation and a flag is4.
@@ -66,19 +66,21 @@ func (a *addr) is4() bool {
 	return a.z == z4
 }
 
-// peek converts a netip.Addr value into the internal addr representation using unsafe.Pointer.
+// unwrap converts a netip.Addr value into the internal addr representation using unsafe.Pointer.
 //
 // This is effectively a cast that allows direct access to netip.Addr internals without copying.
 // Must only be used if struct layouts are confirmed to match.
-func peek(a netip.Addr) addr {
+//
+// Precondition: a is a valid IP address.
+func unwrap(a netip.Addr) addr {
 	return *(*addr)(unsafe.Pointer(&a))
 }
 
-// back converts from the internal addr representation back to netip.Addr.
+// wrap converts from the internal addr representation back to netip.Addr.
 //
 // It reconstructs a valid netip.Addr value by pointer-casting the addr.
 //
 // Use with caution; meaningful only if addr and netip.Addr share memory layout.
-func back(a addr) netip.Addr {
+func wrap(a addr) netip.Addr {
 	return *(*netip.Addr)(unsafe.Pointer(&a))
 }

@@ -29,7 +29,7 @@ func Range(p netip.Prefix) (first, last netip.Addr) {
 	}
 
 	// Extract internal representation of the prefix address as addr struct
-	pa := peek(p.Addr())
+	pa := unwrap(p.Addr())
 
 	bits := p.Bits()
 	if pa.is4() {
@@ -44,9 +44,9 @@ func Range(p netip.Prefix) (first, last netip.Addr) {
 	// Calculate last IP in range: first | ^mask
 	last128 := first128.or(mask.not())
 
-	// Convert back to netip.Addr, preserving IPv4 or IPv6 form
-	first = back(fromUint128(first128, pa.is4()))
-	last = back(fromUint128(last128, pa.is4()))
+	// wrap back to netip.Addr, preserving IPv4 or IPv6 form
+	first = wrap(fromUint128(first128, pa.is4()))
+	last = wrap(fromUint128(last128, pa.is4()))
 
 	return
 }
@@ -66,8 +66,8 @@ func Prefix(first, last netip.Addr) (prefix netip.Prefix, ok bool) {
 		return
 	}
 
-	a := peek(first) // low-level uint128 view of first
-	b := peek(last)  // low-level uint128 view of last
+	a := unwrap(first) // low-level uint128 view of first
+	b := unwrap(last)  // low-level uint128 view of last
 
 	// Check address family consistency.
 	if a.is4() != b.is4() {
@@ -109,8 +109,8 @@ func All(first, last netip.Addr) iter.Seq[netip.Prefix] {
 			return
 		}
 
-		a := peek(first) // low-level uint128 view of first
-		b := peek(last)  // low-level uint128 view of last
+		a := unwrap(first) // low-level uint128 view of first
+		b := unwrap(last)  // low-level uint128 view of last
 
 		// Check address family consistency.
 		if a.is4() != b.is4() {
@@ -142,7 +142,7 @@ func allRec(a, b addr, yield func(netip.Prefix) bool) bool {
 		if a.is4() {
 			bits -= 96
 		}
-		return yield(netip.PrefixFrom(back(a), bits))
+		return yield(netip.PrefixFrom(wrap(a), bits))
 	}
 
 	// If not an exact prefix, split the range for further subdivision

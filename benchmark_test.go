@@ -6,30 +6,30 @@ import "testing"
 func BenchmarkConversion(b *testing.B) {
 	v4 := mustAddr("0.0.0.0")
 	v6 := mustAddr("::")
-	addrV4 := peek(v4)
-	addrV6 := peek(v6)
+	addrV4 := unwrap(v4)
+	addrV6 := unwrap(v6)
 
-	b.Run("peek v4", func(b *testing.B) {
+	b.Run("unwrap v4", func(b *testing.B) {
 		for b.Loop() {
-			addrSink = peek(v4)
+			addrSink = unwrap(v4)
 		}
 	})
 
-	b.Run("peek v6", func(b *testing.B) {
+	b.Run("unwrap v6", func(b *testing.B) {
 		for b.Loop() {
-			addrSink = peek(v6)
+			addrSink = unwrap(v6)
 		}
 	})
 
-	b.Run("back v4", func(b *testing.B) {
+	b.Run("wrap   v4", func(b *testing.B) {
 		for b.Loop() {
-			netipAddrSink = back(addrV4)
+			netipAddrSink = wrap(addrV4)
 		}
 	})
 
-	b.Run("back v6", func(b *testing.B) {
+	b.Run("wrap   v6", func(b *testing.B) {
 		for b.Loop() {
-			netipAddrSink = back(addrV6)
+			netipAddrSink = wrap(addrV6)
 		}
 	})
 }

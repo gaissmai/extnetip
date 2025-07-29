@@ -1,3 +1,5 @@
+//go:build !unsafe
+
 package extnetip
 
 import (

@@ -23,9 +23,6 @@ import "github.com/gaissmai/extnetip"
 func Range(p netip.Prefix) (first, last netip.Addr)
 func Prefix(first, last netip.Addr) (prefix netip.Prefix, ok bool)
 func All(first, last netip.Addr) iter.Seq[netip.Prefix]
-
-// Deprecated: func Prefixes(first, last netip.Addr) []netip.Prefix
-// Deprecated: func PrefixesAppend(dst []netip.Prefix, first, last netip.Addr) []netip.Prefix
 ```
 
 ## Unsafe Mode

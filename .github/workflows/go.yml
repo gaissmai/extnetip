@@ -21,6 +21,7 @@ jobs:
           go-version: ${{ matrix.go-version }}
       - uses: actions/checkout@v4
       - run: go test -v ./...
+      - run: go test -tags=unsafe -v ./...
 
   govulncheck:
     runs-on: ubuntu-latest

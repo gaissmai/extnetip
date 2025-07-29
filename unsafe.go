@@ -26,7 +26,7 @@ type addr struct {
 // If they differ, a panic is raised since the unsafe conversions would be invalid.
 //
 // This check ensures that the unsafe.Pointer casts remain valid across Go versions.
-var isItSafeToUseUnsafe = func() bool {
+var _ = func() bool {
 	s1 := unsafe.Sizeof(addr{})
 	s2 := unsafe.Sizeof(netip.Addr{})
 

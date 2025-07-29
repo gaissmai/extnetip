@@ -54,7 +54,13 @@ jobs:
         with:
           check-latest: true
 
-      - name: golangci-lint
+      - name: golangci-lint without build tag
         uses: golangci/golangci-lint-action@v8
         with:
           version: latest
+
+      - name: golangci-lint with unsafe build tag
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: latest
+          args: --build-tags=unsafe

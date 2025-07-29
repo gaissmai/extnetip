@@ -3,6 +3,7 @@ package extnetip_test
 import (
 	"net/netip"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/gaissmai/extnetip"
@@ -528,13 +529,11 @@ func TestAll(t *testing.T) {
 	for _, tt := range tests {
 		var got []netip.Prefix
 
-		iterFunc := extnetip.All(tt.first, tt.last)
-		iterFunc(func(pfx netip.Prefix) bool {
+		for pfx := range extnetip.All(tt.first, tt.last) {
 			got = append(got, pfx)
-			return true
-		})
+		}
 
-		if !reflect.DeepEqual(got, tt.want) {
+		if !slices.Equal(got, tt.want) {
 			t.Errorf("failed %s->%s. got:", tt.first, tt.last)
 			for _, v := range got {
 				t.Errorf("  %v", v)

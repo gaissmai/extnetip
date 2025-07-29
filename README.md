@@ -49,18 +49,16 @@ Below is a benchmark comparing the safe (default) and unsafe conversion methods:
 goos: linux
 goarch: amd64
 pkg: github.com/gaissmai/extnetip
-cpu: Intel(R) Core(TM) i5-7500T CPU @ 2.70GHz
-                   │   safe.bm    │             unsafe.bm              │
-                   │    sec/op    │   sec/op     vs base               │
-Conversion/peek_v4    3.381n ± 1%   2.461n ± 0%  -27.21% (p=0.002 n=6)
-Conversion/peek_v6    4.303n ± 1%   2.463n ± 1%  -42.77% (p=0.002 n=6)
-Conversion/back_v4    3.177n ± 0%   2.460n ± 1%  -22.60% (p=0.002 n=6)
-Conversion/back_v6    9.557n ± 1%   2.463n ± 1%  -74.23% (p=0.002 n=6)
-Range/v4             13.270n ± 0%   5.852n ± 1%  -55.90% (p=0.002 n=6)
-Range/v6             27.075n ± 1%   5.987n ± 0%  -77.89% (p=0.002 n=6)
-Prefix/v4             17.89n ± 0%   12.97n ± 0%  -27.50% (p=0.002 n=6)
-Prefix/v6             19.05n ± 1%   12.11n ± 0%  -36.46% (p=0.002 n=6)
-geomean               9.261n        4.604n       -50.28%
+cpu: Intel(R) Core(TM) i5-8250U CPU @ 1.60GHz
+          │   safe.bm    │             unsafe.bm              │
+          │    sec/op    │   sec/op     vs base               │
+Range/v4    13.440n ± 3%   5.147n ± 3%  -61.71% (p=0.002 n=6)
+Range/v6    26.550n ± 0%   5.377n ± 3%  -79.75% (p=0.002 n=6)
+Prefix/v4    17.43n ± 2%   12.74n ± 3%  -26.86% (p=0.002 n=6)
+Prefix/v6    19.04n ± 4%   11.09n ± 1%  -41.74% (p=0.002 n=6)
+All/v4       1.789µ ± 3%   1.509µ ± 4%  -15.65% (p=0.002 n=6)
+All/v6       7.851µ ± 1%   5.654µ ± 4%  -27.98% (p=0.002 n=6)
+geomean      108.8n        56.74n       -47.87%
 ```
 
 ## Future Work

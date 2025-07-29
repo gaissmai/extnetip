@@ -69,3 +69,23 @@ func BenchmarkPrefix(b *testing.B) {
 		}
 	})
 }
+
+//nolint:govet
+func BenchmarkAll(b *testing.B) {
+	first4, last4 := mustAddr("0.0.0.1"), mustAddr("255.255.255.254")
+	first6, last6 := mustAddr("::1"), mustAddr("ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe")
+
+	b.Run("v4", func(b *testing.B) {
+		for b.Loop() {
+			for netipPrefixSink = range All(first4, last4) {
+			}
+		}
+	})
+
+	b.Run("v6", func(b *testing.B) {
+		for b.Loop() {
+			for netipPrefixSink = range All(first6, last6) {
+			}
+		}
+	})
+}

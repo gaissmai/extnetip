@@ -19,13 +19,13 @@ type addr struct {
 	z  uintptr
 }
 
-// isItSafeToUseUnsafe verifies at runtime that the memory layout of the
-// internal addr struct used here matches the layout of netip.Addr.
+// runtime-time check that verifies the size of our custom addr struct matches
+// the size of netip.Addr. If the sizes differ, the array length is invalid,
+// causing a compile-time error and preventing unsafe pointer casts that could
+// otherwise lead to memory corruption.
 //
-// It compares the size of the custom addr struct with the size of netip.Addr.
-// If they differ, a panic is raised since the unsafe conversions would be invalid.
-//
-// This check ensures that the unsafe.Pointer casts remain valid across Go versions.
+// Note: This check only verifies the total size of the structs, but does NOT
+// guarantee that the memory layout (field order, alignment, and padding) is identical.
 var _ = func() bool {
 	s1 := unsafe.Sizeof(addr{})
 	s2 := unsafe.Sizeof(netip.Addr{})

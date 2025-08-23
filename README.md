@@ -49,13 +49,11 @@ pkg: github.com/gaissmai/extnetip
 cpu: Intel(R) Core(TM) i5-8250U CPU @ 1.60GHz
           │   safe.bm    │             unsafe.bm              │
           │    sec/op    │   sec/op     vs base               │
-Range/v4    13.440n ± 3%   5.147n ± 3%  -61.71% (p=0.002 n=6)
-Range/v6    26.550n ± 0%   5.377n ± 3%  -79.75% (p=0.002 n=6)
-Prefix/v4    17.43n ± 2%   12.74n ± 3%  -26.86% (p=0.002 n=6)
-Prefix/v6    19.04n ± 4%   11.09n ± 1%  -41.74% (p=0.002 n=6)
-All/v4       1.789µ ± 3%   1.509µ ± 4%  -15.65% (p=0.002 n=6)
-All/v6       7.851µ ± 1%   5.654µ ± 4%  -27.98% (p=0.002 n=6)
-geomean      108.8n        56.74n       -47.87%
+Range/v4    12.980n ± 0%   5.691n ± 0%  -56.15% (p=0.002 n=6)
+Range/v6    26.395n ± 0%   5.792n ± 0%  -78.06% (p=0.002 n=6)
+Prefix/v4    17.17n ± 1%   12.34n ± 0%  -28.10% (p=0.002 n=6)
+Prefix/v6    18.59n ± 1%   11.45n ± 0%  -38.43% (p=0.002 n=6)
+geomean      18.18n        8.261n       -54.57%
 ```
 
 ## Future Work

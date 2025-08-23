@@ -12,13 +12,6 @@ var (
 	mustPfx  = netip.MustParsePrefix
 )
 
-var (
-	boolSink        bool
-	addrSink        addr
-	netipAddrSink   netip.Addr
-	netipPrefixSink netip.Prefix
-)
-
 func TestIdempotent(t *testing.T) {
 	t.Parallel()
 	v4 := mustAddr("0.0.0.0")

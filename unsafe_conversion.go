@@ -19,24 +19,6 @@ type addr struct {
 	z  uintptr
 }
 
-// runtime-time check that verifies the size of our custom addr struct matches
-// the size of netip.Addr. If the sizes differ, the array length is invalid,
-// causing a compile-time error and preventing unsafe pointer casts that could
-// otherwise lead to memory corruption.
-//
-// Note: This check only verifies the total size of the structs, but does NOT
-// guarantee that the memory layout (field order, alignment, and padding) is identical.
-var _ = func() bool {
-	s1 := unsafe.Sizeof(addr{})
-	s2 := unsafe.Sizeof(netip.Addr{})
-
-	if s1 == s2 {
-		return true
-	}
-
-	panic("netip.Addr struct layout has changed")
-}
-
 // Internal singleton pointers extracted from zero-value netip.Addr instances.
 // These uintptr values correspond to internal discriminators used by netip.Addr
 // to distinguish the kind of IP address representation.

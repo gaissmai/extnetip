@@ -10,25 +10,25 @@ func BenchmarkConversion(b *testing.B) {
 
 	b.Run("unwrap v4", func(b *testing.B) {
 		for b.Loop() {
-			addrSink = unwrap(v4)
+			unwrap(v4)
 		}
 	})
 
 	b.Run("unwrap v6", func(b *testing.B) {
 		for b.Loop() {
-			addrSink = unwrap(v6)
+			unwrap(v6)
 		}
 	})
 
 	b.Run("wrap   v4", func(b *testing.B) {
 		for b.Loop() {
-			netipAddrSink = wrap(addrV4)
+			wrap(addrV4)
 		}
 	})
 
 	b.Run("wrap   v6", func(b *testing.B) {
 		for b.Loop() {
-			netipAddrSink = wrap(addrV6)
+			wrap(addrV6)
 		}
 	})
 }
@@ -39,13 +39,13 @@ func BenchmarkRange(b *testing.B) {
 
 	b.Run("v4", func(b *testing.B) {
 		for b.Loop() {
-			netipAddrSink, netipAddrSink = Range(v4)
+			Range(v4)
 		}
 	})
 
 	b.Run("v6", func(b *testing.B) {
 		for b.Loop() {
-			netipAddrSink, netipAddrSink = Range(v6)
+			Range(v6)
 		}
 	})
 }
@@ -56,13 +56,13 @@ func BenchmarkPrefix(b *testing.B) {
 
 	b.Run("v4", func(b *testing.B) {
 		for b.Loop() {
-			netipPrefixSink, boolSink = Prefix(first4, last4)
+			Prefix(first4, last4)
 		}
 	})
 
 	b.Run("v6", func(b *testing.B) {
 		for b.Loop() {
-			netipPrefixSink, boolSink = Prefix(first6, last6)
+			Prefix(first6, last6)
 		}
 	})
 }

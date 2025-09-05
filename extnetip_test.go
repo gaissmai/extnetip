@@ -917,6 +917,18 @@ func TestCommonPrefix(t *testing.T) {
 		expect netip.Prefix // zero value means expect invalid
 	}{
 		{
+			name:   "invalid prefix",
+			pfx1:   mpp("192.168.1.0/24"),
+			pfx2:   netip.Prefix{},
+			expect: netip.Prefix{}, // expect zero
+		},
+		{
+			name:   "different IP versions",
+			pfx1:   mpp("192.168.1.0/24"),
+			pfx2:   mpp("2001:db8::/32"),
+			expect: netip.Prefix{}, // expect zero
+		},
+		{
 			name:   "identical IPv4 prefixes",
 			pfx1:   mpp("192.168.1.0/24"),
 			pfx2:   mpp("192.168.1.0/24"),
@@ -945,12 +957,6 @@ func TestCommonPrefix(t *testing.T) {
 			pfx1:   mpp("2001:db8:1::/48"),
 			pfx2:   mpp("2001:db8:2::/48"),
 			expect: mpp("2001:db8::/46"),
-		},
-		{
-			name:   "different IP versions",
-			pfx1:   mpp("192.168.1.0/24"),
-			pfx2:   mpp("2001:db8::/32"),
-			expect: netip.Prefix{}, // expect zero
 		},
 		{
 			name:   "IPv4 non-canonical prefix",

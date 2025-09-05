@@ -66,3 +66,23 @@ func BenchmarkPrefix(b *testing.B) {
 		}
 	})
 }
+
+func BenchmarkCommonPrefix(b *testing.B) {
+	v4Pfx1 := mustPfx("10.1.2.0/13")
+	v4Pfx2 := mustPfx("10.1.2.0/30")
+
+	v6Pfx1 := mustPfx("2001:db8:7ff:beef::/56")
+	v6Pfx2 := mustPfx("2001:db8:7fe:affe::/64")
+
+	b.Run("v4", func(b *testing.B) {
+		for b.Loop() {
+			CommonPrefix(v4Pfx1, v4Pfx2)
+		}
+	})
+
+	b.Run("v6", func(b *testing.B) {
+		for b.Loop() {
+			CommonPrefix(v6Pfx1, v6Pfx2)
+		}
+	})
+}

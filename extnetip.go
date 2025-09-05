@@ -172,3 +172,34 @@ func PrefixesAppend(dst []netip.Prefix, first, last netip.Addr) []netip.Prefix {
 	}
 	return dst
 }
+
+// CommonPrefix returns the longest prefix shared by pfx1 and pfx2.
+// It returns the zero value if a prefix is invalid or if the IP
+// versions do not match. Otherwise it compares both addresses
+// and returns the prefix covering their common range.
+func CommonPrefix(pfx1, pfx2 netip.Prefix) (pfx netip.Prefix) {
+	if !pfx1.IsValid() || !pfx2.IsValid() {
+		return
+	}
+
+	addr1 := pfx1.Masked().Addr()
+	addr2 := pfx2.Masked().Addr()
+
+	is4 := addr1.Is4()
+	if addr2.Is4() != is4 {
+		return
+	}
+
+	bits := min(pfx1.Bits(), pfx2.Bits())
+
+	ext1 := unwrap(addr1)
+	ext2 := unwrap(addr2)
+
+	commonBits := ext1.ip.commonPrefixLen(ext2.ip)
+	if is4 {
+		commonBits -= 96
+	}
+	bits = min(commonBits, bits)
+
+	return netip.PrefixFrom(addr1, bits).Masked()
+}

@@ -906,3 +906,82 @@ func TestPrefixes(t *testing.T) {
 		}
 	}
 }
+
+func TestCommonPrefix(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		pfx1   netip.Prefix
+		pfx2   netip.Prefix
+		expect netip.Prefix // zero value means expect invalid
+	}{
+		{
+			name:   "identical IPv4 prefixes",
+			pfx1:   mpp("192.168.1.0/24"),
+			pfx2:   mpp("192.168.1.0/24"),
+			expect: mpp("192.168.1.0/24"),
+		},
+		{
+			name:   "IPv4 with shorter overlap",
+			pfx1:   mpp("192.168.1.0/24"),
+			pfx2:   mpp("192.168.2.0/24"),
+			expect: mpp("192.168.0.0/22"),
+		},
+		{
+			name:   "IPv4 no overlap",
+			pfx1:   mpp("10.0.0.0/8"),
+			pfx2:   mpp("192.168.0.0/16"),
+			expect: mpp("0.0.0.0/0"),
+		},
+		{
+			name:   "identical IPv6 prefixes",
+			pfx1:   mpp("2001:db8::/32"),
+			pfx2:   mpp("2001:db8::/32"),
+			expect: mpp("2001:db8::/32"),
+		},
+		{
+			name:   "IPv6 with shorter overlap",
+			pfx1:   mpp("2001:db8:1::/48"),
+			pfx2:   mpp("2001:db8:2::/48"),
+			expect: mpp("2001:db8::/46"),
+		},
+		{
+			name:   "different IP versions",
+			pfx1:   mpp("192.168.1.0/24"),
+			pfx2:   mpp("2001:db8::/32"),
+			expect: netip.Prefix{}, // expect zero
+		},
+		{
+			name:   "IPv4 non-canonical prefix",
+			pfx1:   mpp("192.168.1.123/24"), // not masked
+			pfx2:   mpp("192.168.1.55/24"),
+			expect: mpp("192.168.1.0/24"),
+		},
+		{
+			name:   "IPv6 non-canonical prefix",
+			pfx1:   mpp("2001:db8::1/128"),
+			pfx2:   mpp("2001:db8:abcd::/32"), // not masked
+			expect: mpp("2001:db8::/32"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := extnetip.CommonPrefix(tt.pfx1, tt.pfx2)
+
+			if !tt.expect.IsValid() {
+				if got.IsValid() {
+					t.Errorf("%s: expected zero prefix, got %v", tt.name, got)
+				}
+				return
+			}
+
+			if got != tt.expect {
+				t.Errorf("%s: expected %v, got %v", tt.name, tt.expect, got)
+			}
+		})
+	}
+}

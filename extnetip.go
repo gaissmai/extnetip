@@ -190,16 +190,18 @@ func CommonPrefix(pfx1, pfx2 netip.Prefix) (pfx netip.Prefix) {
 		return
 	}
 
-	bits := min(pfx1.Bits(), pfx2.Bits())
-
 	ext1 := unwrap(addr1)
 	ext2 := unwrap(addr2)
 
+	// count matching bits in the full 128-bit space
 	commonBits := ext1.ip.commonPrefixLen(ext2.ip)
 	if is4 {
-		commonBits -= 96
+		commonBits -= 96 // adjust offset for IPv4
 	}
-	bits = min(commonBits, bits)
 
-	return netip.PrefixFrom(addr1, bits).Masked()
+	// final length must not exceed shorter input prefix
+	minBits := min(commonBits, pfx1.Bits(), pfx2.Bits())
+
+	// return normalized prefix; addr1 or addr2 works equally
+	return netip.PrefixFrom(addr1, minBits).Masked()
 }

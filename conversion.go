@@ -57,7 +57,7 @@ func (a *addr) is4() bool {
 //
 // Precondition: a is a valid IP address.
 func unwrap(a netip.Addr) (b addr) {
-	ip := a.AsSlice() // nil if is a isn't valid!
+	ip := a.AsSlice() // nil if a isn't valid!
 
 	if len(ip) == 4 {
 		b.v4 = true

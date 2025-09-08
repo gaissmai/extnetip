@@ -28,6 +28,17 @@ type addr struct {
 	z  uintptr
 }
 
+// Internal singleton pointers extracted from zero-value netip.Addr instances.
+// These uintptr values correspond to internal discriminators used by netip.Addr
+// to distinguish the kind of IP address representation.
+//
+// z4    - IPv4 address representation
+// z6noz - IPv6 address representation without zone
+var (
+	z4    uintptr
+	z6noz uintptr
+)
+
 // Compile-time and runtime sanity checks: fail fast if layout changes.
 // If sizes differ this line triggers a compile-time error (array length mismatch).
 var _ [1]struct{} = [1 - int(unsafe.Sizeof(addr{})-unsafe.Sizeof(netip.Addr{}))]struct{}{}
@@ -36,18 +47,11 @@ func init() {
 	if unsafe.Alignof(addr{}) != unsafe.Alignof(netip.Addr{}) {
 		panic("extnetip: netip.Addr alignment changed; rebuild without -tags=unsafe")
 	}
-}
 
-// Internal singleton pointers extracted from zero-value netip.Addr instances.
-// These uintptr values correspond to internal discriminators used by netip.Addr
-// to distinguish the kind of IP address representation.
-//
-// z4    - IPv4 address representation
-// z6noz - IPv6 address representation without zone
-var (
-	z4    uintptr = unwrap(netip.AddrFrom4([4]byte{})).z
-	z6noz uintptr = unwrap(netip.AddrFrom16([16]byte{})).z
-)
+	// Initialize discriminators only after alignment is verified.
+	z4 = unwrap(netip.AddrFrom4([4]byte{})).z
+	z6noz = unwrap(netip.AddrFrom16([16]byte{})).z
+}
 
 // fromUint128 constructs an addr struct from a uint128 IP representation and a flag is4.
 //

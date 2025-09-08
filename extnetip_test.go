@@ -1,3 +1,6 @@
+// Package extnetip_test contains integration tests and examples
+// for the extnetip package.
+// These tests verify the correct behavior of IP range and prefix conversion functions.
 package extnetip_test
 
 import (

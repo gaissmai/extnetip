@@ -1,5 +1,15 @@
 //go:build !unsafe
 
+// Package extnetip safe conversion implementation.
+//
+// This file is used when the 'unsafe' build tag is NOT specified.
+// It provides safe conversions between netip.Addr and internal uint128
+// representation using standard library byte manipulation functions.
+//
+// While slower than the unsafe version, this approach avoids potential
+// issues with unsafe pointer operations and is suitable for environments
+// where unsafe operations are prohibited.
+
 package extnetip
 
 import (

@@ -71,25 +71,25 @@ func (u uint128) commonPrefixLen(v uint128) (n int) {
 // prefixOK checks if the range from u to v (inclusive) forms an exact IP prefix (CIDR block).
 //
 // Returns:
-//   - bits: the length of the common prefix bits between u and v.
+//   - lcp: the length of the common prefix bits between u and v.
 //   - ok: true if [u, v] corresponds exactly to a CIDR range without gaps.
 //
 // The check confirms:
 //   - That the prefix length matches the differing bits.
 //   - That u has zeros in all host bits (the prefix network part).
 //   - That v has ones in all host bits (the prefix broadcast/end address).
-func (u uint128) prefixOK(v uint128) (bits int, ok bool) {
-	bits = u.commonPrefixLen(v)
-	if bits == 128 {
-		return bits, true
+func (u uint128) prefixOK(v uint128) (lcp int, ok bool) {
+	lcp = u.commonPrefixLen(v)
+	if lcp == 128 {
+		return lcp, true
 	}
-	mask := mask6(bits)
+	mask := mask6(lcp)
 
 	// check if mask applied to first and last results in all zeros and all ones
 	allZero := u.xor(u.and(mask)) == uint128{}
 	allOnes := v.or(mask) == uint128{^uint64(0), ^uint64(0)}
 
-	return bits, allZero && allOnes
+	return lcp, allZero && allOnes
 }
 
 // compare compares u and v and returns:

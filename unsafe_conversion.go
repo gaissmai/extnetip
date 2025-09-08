@@ -28,6 +28,16 @@ type addr struct {
 	z  uintptr
 }
 
+// Compile-time and runtime sanity checks: fail fast if layout changes.
+// If sizes differ this line triggers a compile-time error (array length mismatch).
+var _ [1]struct{} = [1 - int(unsafe.Sizeof(addr{})-unsafe.Sizeof(netip.Addr{}))]struct{}{}
+
+func init() {
+	if unsafe.Alignof(addr{}) != unsafe.Alignof(netip.Addr{}) {
+		panic("extnetip: netip.Addr alignment changed; rebuild without -tags=unsafe")
+	}
+}
+
 // Internal singleton pointers extracted from zero-value netip.Addr instances.
 // These uintptr values correspond to internal discriminators used by netip.Addr
 // to distinguish the kind of IP address representation.

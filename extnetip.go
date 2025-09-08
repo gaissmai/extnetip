@@ -149,7 +149,7 @@ func allRec(a, b addr, yield func(netip.Prefix) bool) bool {
 	// Range doesn't match a single CIDR - split it in half
 	mask := mask6(bits + 1)                                // Mask for one bit longer prefix
 	leftUpper := fromUint128(a.ip.or(mask.not()), a.is4()) // Left half upper bound
-	rightLower := fromUint128(b.ip.and(mask), a.is4())     // // Right half lower bound
+	rightLower := fromUint128(b.ip.and(mask), a.is4())     // Right half lower bound
 
 	// Recursively process both halves
 	return allRec(a, leftUpper, yield) && allRec(rightLower, b, yield)

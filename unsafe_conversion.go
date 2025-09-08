@@ -1,5 +1,14 @@
 //go:build unsafe
 
+// Package extnetip unsafe conversion implementation.
+//
+// This file is used when built with the 'unsafe' build tag.
+// It provides fast conversions using unsafe.Pointer operations but requires
+// that the internal layout of netip.Addr remains stable.
+//
+// WARNING: This implementation depends on internal Go standard library
+// implementation details and may break with future Go versions.
+
 package extnetip
 
 import (

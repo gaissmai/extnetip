@@ -1,12 +1,13 @@
-// Package extnetip is an extension to net/netip providing
-// auxiliary functions for converting IP prefixes to IP ranges
-// and vice versa.
+// Package extnetip is an extension to net/netip providing auxiliary functions
+// for converting IP prefixes to IP ranges and vice versa.
 //
-// The calculations are done efficiently in uint128 space,
-// avoiding conversions to/from byte slices.
+// The calculations are done efficiently in uint128 space, avoiding conversions
+// to/from byte slices. These extensions allow easy implementation of third-party
+// libraries for IP range management on top of net/netip.
 //
-// These extensions allow easy implementation of third-party libraries
-// for IP range management on top of net/netip.
+// This package supports both safe and unsafe modes of operation. When built with
+// the 'unsafe' build tag, conversions use unsafe.Pointer for better performance.
+// Without the tag, safe byte-slice based conversions are used.
 package extnetip
 
 import (
@@ -138,26 +139,20 @@ func allRec(a, b addr, yield func(netip.Prefix) bool) bool {
 	// Check if [a, b] is exactly a prefix range
 	bits, ok := a.ip.prefixOK(b.ip)
 	if ok {
-		// recursion stop condition:
+		// Found exact CIDR match - yield it and stop recursion
 		if a.is4() {
-			bits -= 96
+			bits -= 96 // Adjust for IPv4-in-IPv6 embedding
 		}
 		return yield(netip.PrefixFrom(wrap(a), bits))
 	}
 
-	// If not an exact prefix, split the range for further subdivision
+	// Range doesn't match a single CIDR - split it in half
+	mask := mask6(bits + 1)                                // Mask for one bit longer prefix
+	leftUpper := fromUint128(a.ip.or(mask.not()), a.is4()) // Left half upper bound
+	rightLower := fromUint128(b.ip.and(mask), a.is4())     // // Right half lower bound
 
-	// Calculate mask for one bit longer prefix length (to create a split point)
-	mask := mask6(bits + 1)
-
-	// Create midpoint by setting host bits for left half upper bound
-	m1 := fromUint128(a.ip.or(mask.not()), a.is4())
-
-	// Create midpoint by clearing host bits for right half lower bound
-	m2 := fromUint128(b.ip.and(mask), a.is4())
-
-	// Recursively yield prefixes for left half and then right half
-	return allRec(a, m1, yield) && allRec(m2, b, yield)
+	// Recursively process both halves
+	return allRec(a, leftUpper, yield) && allRec(rightLower, b, yield)
 }
 
 // Deprecated: Prefixes is deprecated. Use the iterator version [All] instead.

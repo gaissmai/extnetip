@@ -137,6 +137,7 @@ func All(first, last netip.Addr) iter.Seq[netip.Prefix] {
 // All bit arithmetic and masking is done in uint128 space.
 func allRec(a, b addr, yield func(netip.Prefix) bool) bool {
 	// Check if [a, b] is exactly a prefix range
+	// bits is LCP!
 	bits, ok := a.ip.prefixOK(b.ip)
 	if ok {
 		// Found exact CIDR match - yield it and stop recursion
@@ -147,6 +148,7 @@ func allRec(a, b addr, yield func(netip.Prefix) bool) bool {
 	}
 
 	// Range doesn't match a single CIDR - split it in half
+	// bits is LCP!
 	mask := mask6(bits + 1)                                // Mask for one bit longer prefix
 	leftUpper := fromUint128(a.ip.or(mask.not()), a.is4()) // Left half upper bound
 	rightLower := fromUint128(b.ip.and(mask), a.is4())     // Right half lower bound

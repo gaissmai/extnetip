@@ -1,4 +1,3 @@
-# package extnetip
 [![Go Reference](https://pkg.go.dev/badge/github.com/gaissmai/extnetip.svg)](https://pkg.go.dev/github.com/gaissmai/extnetip#section-documentation)
 ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/gaissmai/extnetip)
 [![CI](https://github.com/gaissmai/extnetip/actions/workflows/go.yml/badge.svg)](https://github.com/gaissmai/extnetip/actions/workflows/go.yml)
@@ -7,6 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Stand With Ukraine](https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/badges/StandWithUkraine.svg)](https://stand-with-ukraine.pp.ua)
 
+# package extnetip
 
 Package `extnetip` is an extension to the Go standard library package `net/netip`, providing
 a set of important auxiliary functions **currently missing** from `netip` for

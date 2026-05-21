@@ -44,29 +44,28 @@ func (a *addr) is4() bool {
 
 // unwrap extracts the raw uint128 representation from a netip.Addr safely.
 //
-// It converts the netip.Addr into a []byte slice representing the IP.
-//
-//   - If the length is 4 (IPv4), it sets the field v4 to true and decodes the 4 bytes
-//     as a uint32 into the low 64 bits.
-//
-//   - Otherwise it decodes the first 8 bytes as the high 64 bits and the
-//     next 8 bytes as the low 64 bits of the IP.
-//
 // This function avoids unsafe.Pointer usage by working explicitly with
-// byte slices and binary decoding.
+// byte arrays and binary decoding.
 //
 // Precondition: a is a valid IP address.
 func unwrap(a netip.Addr) (b addr) {
-	ip := a.AsSlice() // nil if a isn't valid!
-
-	if len(ip) == 4 {
-		b.v4 = true
-		b.ip.lo = uint64(binary.BigEndian.Uint32(ip))
-		return b
+	if a.Is4() {
+		return unwrap4(a)
 	}
+	return unwrap6(a)
+}
 
-	b.ip.hi = binary.BigEndian.Uint64(ip[:8])
-	b.ip.lo = binary.BigEndian.Uint64(ip[8:])
+func unwrap4(a netip.Addr) (b addr) {
+	as4 := a.As4()
+	b.ip.lo = uint64(binary.BigEndian.Uint32(as4[:]))
+	b.v4 = true
+	return b
+}
+
+func unwrap6(a netip.Addr) (b addr) {
+	as16 := a.As16()
+	b.ip.hi = binary.BigEndian.Uint64(as16[:8])
+	b.ip.lo = binary.BigEndian.Uint64(as16[8:])
 
 	return b
 }

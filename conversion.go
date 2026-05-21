@@ -47,7 +47,9 @@ func (a *addr) is4() bool {
 // This function avoids unsafe.Pointer usage by working explicitly with
 // byte arrays and binary decoding.
 //
+// unwrap converts a netip.Addr into the package's internal addr representation.
 // Precondition: a is a valid IP address.
+// IPv4 addresses are returned with the v4 flag set.
 func unwrap(a netip.Addr) (b addr) {
 	if a.Is4() {
 		return unwrap4(a)
@@ -55,6 +57,9 @@ func unwrap(a netip.Addr) (b addr) {
 	return unwrap6(a)
 }
 
+// unwrap4 converts an IPv4 netip.Addr into the package's internal addr representation.
+// The address's four octets are stored in the low 32 bits of b.ip.lo (big-endian) and b.v4 is set to true.
+// The input must be an IPv4 address.
 func unwrap4(a netip.Addr) (b addr) {
 	as4 := a.As4()
 	b.ip.lo = uint64(binary.BigEndian.Uint32(as4[:]))
@@ -62,6 +67,10 @@ func unwrap4(a netip.Addr) (b addr) {
 	return b
 }
 
+// unwrap6 converts an IPv6 netip.Addr into the internal addr representation.
+// It decodes the 16-byte address in big-endian order into ip.hi (first 8 bytes)
+// and ip.lo (last 8 bytes); the returned addr represents an IPv6 address (v4
+// remains false).
 func unwrap6(a netip.Addr) (b addr) {
 	as16 := a.As16()
 	b.ip.hi = binary.BigEndian.Uint64(as16[:8])

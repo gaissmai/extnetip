@@ -15,6 +15,9 @@ import (
 	"net/netip"
 )
 
+// empty iterator for wrong input parameter
+var zeroIter iter.Seq[netip.Prefix] = func(func(netip.Prefix) bool) {}
+
 // Range returns the inclusive IP address range [first, last]
 // covered by the given prefix p.
 //
@@ -104,25 +107,26 @@ func Prefix(first, last netip.Addr) (prefix netip.Prefix, ok bool) {
 // This uses a recursive subdivision approach to partition
 // the range into a minimal set of CIDRs.
 func All(first, last netip.Addr) iter.Seq[netip.Prefix] {
+	// invalid IP
+	if !first.IsValid() || !last.IsValid() {
+		return zeroIter
+	}
+
+	a := unwrap(first) // low-level uint128 view of first
+	b := unwrap(last)  // low-level uint128 view of last
+
+	// Check address family consistency.
+	if a.is4() != b.is4() {
+		return zeroIter
+	}
+
+	// Ensure ordering: first <= last
+	if a.ip.compare(b.ip) == 1 {
+		return zeroIter
+	}
+
+	// happy path
 	return func(yield func(netip.Prefix) bool) {
-		// invalid IP
-		if !first.IsValid() || !last.IsValid() {
-			return
-		}
-
-		a := unwrap(first) // low-level uint128 view of first
-		b := unwrap(last)  // low-level uint128 view of last
-
-		// Check address family consistency.
-		if a.is4() != b.is4() {
-			return
-		}
-
-		// Ensure ordering: first <= last
-		if a.ip.compare(b.ip) == 1 {
-			return
-		}
-
 		// Start recursive subdivision and yield prefixes
 		allRec(a, b, yield)
 	}

@@ -23,6 +23,11 @@ func assertCoversRange(first, last netip.Addr, pfxs []netip.Prefix, lenWanted in
 		return fmt.Errorf("got %d prefix(es), expected %d", len(pfxs), lenWanted)
 	}
 
+	// early exit
+	if lenWanted == 0 {
+		return nil
+	}
+
 	// first prefix must start at 'first'
 	if f, _ := extnetip.Range(pfxs[0]); f != first {
 		return fmt.Errorf("first prefix starts at %v, want %v", f, first)

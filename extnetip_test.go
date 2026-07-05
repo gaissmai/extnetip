@@ -4,9 +4,8 @@
 package extnetip_test
 
 import (
+	"fmt"
 	"net/netip"
-	"reflect"
-	"slices"
 	"testing"
 
 	"github.com/gaissmai/extnetip"
@@ -17,17 +16,40 @@ var (
 	mpp = netip.MustParsePrefix
 )
 
-func pfxSlice(pfxStrs ...string) (out []netip.Prefix) {
-	for _, s := range pfxStrs {
-		out = append(out, mpp(s))
+// assertCoversRange verifies that pfxs is a minimal, contiguous, non-overlapping
+// cover of the range [first, last] with no gaps at the boundaries.
+func assertCoversRange(first, last netip.Addr, pfxs []netip.Prefix, lenWanted int) error {
+	if len(pfxs) != lenWanted {
+		return fmt.Errorf("got %d prefix(es), expected %d", lenWanted, len(pfxs))
 	}
-	return
+
+	// first prefix must start at 'first'
+	if f, _ := extnetip.Range(pfxs[0]); f != first {
+		return fmt.Errorf("first prefix starts at %v, want %v", f, first)
+	}
+
+	// last prefix must end at 'last'
+	if _, l := extnetip.Range(pfxs[len(pfxs)-1]); l != last {
+		return fmt.Errorf("last prefix ends at %v, want %v", l, last)
+	}
+
+	// consecutive prefixes must be adjacent (no gaps, no overlaps)
+	for i := 1; i < len(pfxs); i++ {
+		_, prevLast := extnetip.Range(pfxs[i-1])
+		curFirst, _ := extnetip.Range(pfxs[i])
+
+		if prevLast.Next() != curFirst {
+			return fmt.Errorf("gap between prefix %v and %v", pfxs[i-1], pfxs[i])
+		}
+	}
+
+	return nil
 }
 
 func TestRange(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		in    netip.Prefix
+		pfx   netip.Prefix
 		first netip.Addr
 		last  netip.Addr
 	}{
@@ -68,14 +90,17 @@ func TestRange(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		first, last := extnetip.Range(tt.in)
-		if first != tt.first {
-			t.Fatalf("Range(%s), got first: %s, expected: %s", tt.in, first, tt.first)
-		}
-		if last != tt.last {
-			t.Fatalf("Range(%s), got last: %s, expected: %s", tt.in, last, tt.last)
-		}
+	for n, tt := range tests {
+		t.Run(fmt.Sprintf("%d", n), func(t *testing.T) {
+			t.Parallel()
+			first, last := extnetip.Range(tt.pfx)
+			if first != tt.first {
+				t.Errorf("Range(%s), got first: %s, expected: %s", tt.pfx, first, tt.first)
+			}
+			if last != tt.last {
+				t.Errorf("Range(%s), got last: %s, expected: %s", tt.pfx, last, tt.last)
+			}
+		})
 	}
 }
 
@@ -173,740 +198,59 @@ func TestPrefix(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		p, ok := extnetip.Prefix(tt.ip1, tt.ip2)
-		if ok != tt.ok {
-			t.Fatalf("Prefix(%s, %s), got ok: %v, expected: %v", tt.ip1, tt.ip2, ok, tt.ok)
-		}
-		if p != tt.p {
-			t.Fatalf("Prefix(%s, %s), got prefix: %s, expected: %s", tt.ip1, tt.ip2, p, tt.p)
-		}
+	for n, tt := range tests {
+		t.Run(fmt.Sprintf("%d", n), func(t *testing.T) {
+			t.Parallel()
+			p, ok := extnetip.Prefix(tt.ip1, tt.ip2)
+			if ok != tt.ok {
+				t.Errorf("Prefix(%s, %s), got ok: %v, expected: %v", tt.ip1, tt.ip2, ok, tt.ok)
+			}
+			if p != tt.p {
+				t.Errorf("Prefix(%s, %s), got prefix: %s, expected: %s", tt.ip1, tt.ip2, p, tt.p)
+			}
+		})
 	}
 }
 
-func TestAll(t *testing.T) {
+func TestAll_and_Prefixes(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		first netip.Addr
-		last  netip.Addr
-		want  []netip.Prefix
+		first   netip.Addr
+		last    netip.Addr
+		wantLen int // wanted len of prefixes for given range
 	}{
-		{netip.Addr{}, netip.Addr{}, nil},            // invalid addrs
-		{mpa("0.0.0.1"), mpa("0.0.0.0"), nil},        // wrong order
-		{mpa("0.0.0.1"), mpa("::1"), nil},            // wrong versions
-		{mpa("0.0.0.1"), mpa("::ffff:1.2.3.4"), nil}, // wrong versions
-
-		{mpa("0.0.0.0"), mpa("255.255.255.255"), pfxSlice("0.0.0.0/0")},
-		{mpa("::"), mpa("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"), pfxSlice("::/0")},
-		{mpa("::ffff:0.0.0.0"), mpa("::ffff:255.255.255.255"), pfxSlice("::ffff:0.0.0.0/96")},
-
-		{mpa("10.0.0.0"), mpa("10.255.255.255"), pfxSlice("10.0.0.0/8")},
-		{mpa("10.0.0.0"), mpa("10.127.255.255"), pfxSlice("10.0.0.0/9")},
-		{mpa("0.0.0.4"), mpa("0.0.0.11"), pfxSlice("0.0.0.4/30", "0.0.0.8/30")},
-		{mpa("10.0.0.0"), mpa("11.10.255.255"), pfxSlice("10.0.0.0/8", "11.0.0.0/13", "11.8.0.0/15", "11.10.0.0/16")},
-		{mpa("fe80::"), mpa("fe80::8"), pfxSlice("fe80::/125", "fe80::8/128")},
-
-		{mpa("0.0.0.1"), mpa("255.255.255.254"), pfxSlice(
-			"0.0.0.1/32",
-			"0.0.0.2/31",
-			"0.0.0.4/30",
-			"0.0.0.8/29",
-			"0.0.0.16/28",
-			"0.0.0.32/27",
-			"0.0.0.64/26",
-			"0.0.0.128/25",
-			"0.0.1.0/24",
-			"0.0.2.0/23",
-			"0.0.4.0/22",
-			"0.0.8.0/21",
-			"0.0.16.0/20",
-			"0.0.32.0/19",
-			"0.0.64.0/18",
-			"0.0.128.0/17",
-			"0.1.0.0/16",
-			"0.2.0.0/15",
-			"0.4.0.0/14",
-			"0.8.0.0/13",
-			"0.16.0.0/12",
-			"0.32.0.0/11",
-			"0.64.0.0/10",
-			"0.128.0.0/9",
-			"1.0.0.0/8",
-			"2.0.0.0/7",
-			"4.0.0.0/6",
-			"8.0.0.0/5",
-			"16.0.0.0/4",
-			"32.0.0.0/3",
-			"64.0.0.0/2",
-			"128.0.0.0/2",
-			"192.0.0.0/3",
-			"224.0.0.0/4",
-			"240.0.0.0/5",
-			"248.0.0.0/6",
-			"252.0.0.0/7",
-			"254.0.0.0/8",
-			"255.0.0.0/9",
-			"255.128.0.0/10",
-			"255.192.0.0/11",
-			"255.224.0.0/12",
-			"255.240.0.0/13",
-			"255.248.0.0/14",
-			"255.252.0.0/15",
-			"255.254.0.0/16",
-			"255.255.0.0/17",
-			"255.255.128.0/18",
-			"255.255.192.0/19",
-			"255.255.224.0/20",
-			"255.255.240.0/21",
-			"255.255.248.0/22",
-			"255.255.252.0/23",
-			"255.255.254.0/24",
-			"255.255.255.0/25",
-			"255.255.255.128/26",
-			"255.255.255.192/27",
-			"255.255.255.224/28",
-			"255.255.255.240/29",
-			"255.255.255.248/30",
-			"255.255.255.252/31",
-			"255.255.255.254/32",
-		)},
-
-		{mpa("::1"), mpa("ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe"), pfxSlice(
-			"::1/128",
-			"::2/127",
-			"::4/126",
-			"::8/125",
-			"::10/124",
-			"::20/123",
-			"::40/122",
-			"::80/121",
-			"::100/120",
-			"::200/119",
-			"::400/118",
-			"::800/117",
-			"::1000/116",
-			"::2000/115",
-			"::4000/114",
-			"::8000/113",
-			"::1:0/112",
-			"::2:0/111",
-			"::4:0/110",
-			"::8:0/109",
-			"::10:0/108",
-			"::20:0/107",
-			"::40:0/106",
-			"::80:0/105",
-			"::100:0/104",
-			"::200:0/103",
-			"::400:0/102",
-			"::800:0/101",
-			"::1000:0/100",
-			"::2000:0/99",
-			"::4000:0/98",
-			"::8000:0/97",
-			"::1:0:0/96",
-			"::2:0:0/95",
-			"::4:0:0/94",
-			"::8:0:0/93",
-			"::10:0:0/92",
-			"::20:0:0/91",
-			"::40:0:0/90",
-			"::80:0:0/89",
-			"::100:0:0/88",
-			"::200:0:0/87",
-			"::400:0:0/86",
-			"::800:0:0/85",
-			"::1000:0:0/84",
-			"::2000:0:0/83",
-			"::4000:0:0/82",
-			"::8000:0:0/81",
-			"::1:0:0:0/80",
-			"::2:0:0:0/79",
-			"::4:0:0:0/78",
-			"::8:0:0:0/77",
-			"::10:0:0:0/76",
-			"::20:0:0:0/75",
-			"::40:0:0:0/74",
-			"::80:0:0:0/73",
-			"::100:0:0:0/72",
-			"::200:0:0:0/71",
-			"::400:0:0:0/70",
-			"::800:0:0:0/69",
-			"::1000:0:0:0/68",
-			"::2000:0:0:0/67",
-			"::4000:0:0:0/66",
-			"::8000:0:0:0/65",
-			"0:0:0:1::/64",
-			"0:0:0:2::/63",
-			"0:0:0:4::/62",
-			"0:0:0:8::/61",
-			"0:0:0:10::/60",
-			"0:0:0:20::/59",
-			"0:0:0:40::/58",
-			"0:0:0:80::/57",
-			"0:0:0:100::/56",
-			"0:0:0:200::/55",
-			"0:0:0:400::/54",
-			"0:0:0:800::/53",
-			"0:0:0:1000::/52",
-			"0:0:0:2000::/51",
-			"0:0:0:4000::/50",
-			"0:0:0:8000::/49",
-			"0:0:1::/48",
-			"0:0:2::/47",
-			"0:0:4::/46",
-			"0:0:8::/45",
-			"0:0:10::/44",
-			"0:0:20::/43",
-			"0:0:40::/42",
-			"0:0:80::/41",
-			"0:0:100::/40",
-			"0:0:200::/39",
-			"0:0:400::/38",
-			"0:0:800::/37",
-			"0:0:1000::/36",
-			"0:0:2000::/35",
-			"0:0:4000::/34",
-			"0:0:8000::/33",
-			"0:1::/32",
-			"0:2::/31",
-			"0:4::/30",
-			"0:8::/29",
-			"0:10::/28",
-			"0:20::/27",
-			"0:40::/26",
-			"0:80::/25",
-			"0:100::/24",
-			"0:200::/23",
-			"0:400::/22",
-			"0:800::/21",
-			"0:1000::/20",
-			"0:2000::/19",
-			"0:4000::/18",
-			"0:8000::/17",
-			"1::/16",
-			"2::/15",
-			"4::/14",
-			"8::/13",
-			"10::/12",
-			"20::/11",
-			"40::/10",
-			"80::/9",
-			"100::/8",
-			"200::/7",
-			"400::/6",
-			"800::/5",
-			"1000::/4",
-			"2000::/3",
-			"4000::/2",
-			"8000::/2",
-			"c000::/3",
-			"e000::/4",
-			"f000::/5",
-			"f800::/6",
-			"fc00::/7",
-			"fe00::/8",
-			"ff00::/9",
-			"ff80::/10",
-			"ffc0::/11",
-			"ffe0::/12",
-			"fff0::/13",
-			"fff8::/14",
-			"fffc::/15",
-			"fffe::/16",
-			"ffff::/17",
-			"ffff:8000::/18",
-			"ffff:c000::/19",
-			"ffff:e000::/20",
-			"ffff:f000::/21",
-			"ffff:f800::/22",
-			"ffff:fc00::/23",
-			"ffff:fe00::/24",
-			"ffff:ff00::/25",
-			"ffff:ff80::/26",
-			"ffff:ffc0::/27",
-			"ffff:ffe0::/28",
-			"ffff:fff0::/29",
-			"ffff:fff8::/30",
-			"ffff:fffc::/31",
-			"ffff:fffe::/32",
-			"ffff:ffff::/33",
-			"ffff:ffff:8000::/34",
-			"ffff:ffff:c000::/35",
-			"ffff:ffff:e000::/36",
-			"ffff:ffff:f000::/37",
-			"ffff:ffff:f800::/38",
-			"ffff:ffff:fc00::/39",
-			"ffff:ffff:fe00::/40",
-			"ffff:ffff:ff00::/41",
-			"ffff:ffff:ff80::/42",
-			"ffff:ffff:ffc0::/43",
-			"ffff:ffff:ffe0::/44",
-			"ffff:ffff:fff0::/45",
-			"ffff:ffff:fff8::/46",
-			"ffff:ffff:fffc::/47",
-			"ffff:ffff:fffe::/48",
-			"ffff:ffff:ffff::/49",
-			"ffff:ffff:ffff:8000::/50",
-			"ffff:ffff:ffff:c000::/51",
-			"ffff:ffff:ffff:e000::/52",
-			"ffff:ffff:ffff:f000::/53",
-			"ffff:ffff:ffff:f800::/54",
-			"ffff:ffff:ffff:fc00::/55",
-			"ffff:ffff:ffff:fe00::/56",
-			"ffff:ffff:ffff:ff00::/57",
-			"ffff:ffff:ffff:ff80::/58",
-			"ffff:ffff:ffff:ffc0::/59",
-			"ffff:ffff:ffff:ffe0::/60",
-			"ffff:ffff:ffff:fff0::/61",
-			"ffff:ffff:ffff:fff8::/62",
-			"ffff:ffff:ffff:fffc::/63",
-			"ffff:ffff:ffff:fffe::/64",
-			"ffff:ffff:ffff:ffff::/65",
-			"ffff:ffff:ffff:ffff:8000::/66",
-			"ffff:ffff:ffff:ffff:c000::/67",
-			"ffff:ffff:ffff:ffff:e000::/68",
-			"ffff:ffff:ffff:ffff:f000::/69",
-			"ffff:ffff:ffff:ffff:f800::/70",
-			"ffff:ffff:ffff:ffff:fc00::/71",
-			"ffff:ffff:ffff:ffff:fe00::/72",
-			"ffff:ffff:ffff:ffff:ff00::/73",
-			"ffff:ffff:ffff:ffff:ff80::/74",
-			"ffff:ffff:ffff:ffff:ffc0::/75",
-			"ffff:ffff:ffff:ffff:ffe0::/76",
-			"ffff:ffff:ffff:ffff:fff0::/77",
-			"ffff:ffff:ffff:ffff:fff8::/78",
-			"ffff:ffff:ffff:ffff:fffc::/79",
-			"ffff:ffff:ffff:ffff:fffe::/80",
-			"ffff:ffff:ffff:ffff:ffff::/81",
-			"ffff:ffff:ffff:ffff:ffff:8000::/82",
-			"ffff:ffff:ffff:ffff:ffff:c000::/83",
-			"ffff:ffff:ffff:ffff:ffff:e000::/84",
-			"ffff:ffff:ffff:ffff:ffff:f000::/85",
-			"ffff:ffff:ffff:ffff:ffff:f800::/86",
-			"ffff:ffff:ffff:ffff:ffff:fc00::/87",
-			"ffff:ffff:ffff:ffff:ffff:fe00::/88",
-			"ffff:ffff:ffff:ffff:ffff:ff00::/89",
-			"ffff:ffff:ffff:ffff:ffff:ff80::/90",
-			"ffff:ffff:ffff:ffff:ffff:ffc0::/91",
-			"ffff:ffff:ffff:ffff:ffff:ffe0::/92",
-			"ffff:ffff:ffff:ffff:ffff:fff0::/93",
-			"ffff:ffff:ffff:ffff:ffff:fff8::/94",
-			"ffff:ffff:ffff:ffff:ffff:fffc::/95",
-			"ffff:ffff:ffff:ffff:ffff:fffe::/96",
-			"ffff:ffff:ffff:ffff:ffff:ffff::/97",
-			"ffff:ffff:ffff:ffff:ffff:ffff:8000:0/98",
-			"ffff:ffff:ffff:ffff:ffff:ffff:c000:0/99",
-			"ffff:ffff:ffff:ffff:ffff:ffff:e000:0/100",
-			"ffff:ffff:ffff:ffff:ffff:ffff:f000:0/101",
-			"ffff:ffff:ffff:ffff:ffff:ffff:f800:0/102",
-			"ffff:ffff:ffff:ffff:ffff:ffff:fc00:0/103",
-			"ffff:ffff:ffff:ffff:ffff:ffff:fe00:0/104",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ff00:0/105",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ff80:0/106",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffc0:0/107",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffe0:0/108",
-			"ffff:ffff:ffff:ffff:ffff:ffff:fff0:0/109",
-			"ffff:ffff:ffff:ffff:ffff:ffff:fff8:0/110",
-			"ffff:ffff:ffff:ffff:ffff:ffff:fffc:0/111",
-			"ffff:ffff:ffff:ffff:ffff:ffff:fffe:0/112",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:0/113",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:8000/114",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:c000/115",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:e000/116",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:f000/117",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:f800/118",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:fc00/119",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:fe00/120",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:ff00/121",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:ff80/122",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffc0/123",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffe0/124",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:fff0/125",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:fff8/126",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffc/127",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe/128",
-		)},
+		{mpa("0.0.0.0"), mpa("255.255.255.255"), 1},
+		{mpa("::"), mpa("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"), 1},
+		{mpa("::ffff:0.0.0.0"), mpa("::ffff:255.255.255.255"), 1},
+		{mpa("10.0.0.0"), mpa("10.255.255.255"), 1},
+		{mpa("10.0.0.0"), mpa("10.127.255.255"), 1},
+		{mpa("0.0.0.4"), mpa("0.0.0.11"), 2},
+		{mpa("10.0.0.0"), mpa("11.10.255.255"), 4},
+		{mpa("fe80::"), mpa("fe80::8"), 2},
+		{mpa("0.0.0.1"), mpa("255.255.255.254"), 62},
+		{mpa("::1"), mpa("ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe"), 254},
 	}
 
-	for _, tt := range tests {
-		var got []netip.Prefix
+	for n, tt := range tests {
+		t.Run(fmt.Sprintf("%d", n), func(t *testing.T) {
+			t.Parallel()
+			var got []netip.Prefix
 
-		for pfx := range extnetip.All(tt.first, tt.last) {
-			got = append(got, pfx)
-		}
-
-		if !slices.Equal(got, tt.want) {
-			t.Errorf("failed %s->%s. got:", tt.first, tt.last)
-			for _, v := range got {
-				t.Errorf("  %v", v)
+			// test All()
+			for pfx := range extnetip.All(tt.first, tt.last) {
+				got = append(got, pfx)
 			}
-			t.Error("want:\n")
-			for _, v := range tt.want {
-				t.Errorf("  %v", v)
+
+			if err := assertCoversRange(tt.first, tt.last, got, tt.wantLen); err != nil {
+				t.Errorf("All(%s,%s): %v, got %v", tt.first, tt.last, err, got)
 			}
-		}
-	}
-}
 
-func TestPrefixes(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		first netip.Addr
-		last  netip.Addr
-		want  []netip.Prefix
-	}{
-		{netip.Addr{}, netip.Addr{}, nil},            // invalid addrs
-		{mpa("0.0.0.1"), mpa("0.0.0.0"), nil},        // wrong order
-		{mpa("0.0.0.1"), mpa("::1"), nil},            // wrong versions
-		{mpa("0.0.0.1"), mpa("::ffff:1.2.3.4"), nil}, // wrong versions
-
-		{mpa("0.0.0.0"), mpa("255.255.255.255"), pfxSlice("0.0.0.0/0")},
-		{mpa("::"), mpa("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"), pfxSlice("::/0")},
-		{mpa("::ffff:0.0.0.0"), mpa("::ffff:255.255.255.255"), pfxSlice("::ffff:0.0.0.0/96")},
-
-		{mpa("10.0.0.0"), mpa("10.255.255.255"), pfxSlice("10.0.0.0/8")},
-		{mpa("10.0.0.0"), mpa("10.127.255.255"), pfxSlice("10.0.0.0/9")},
-		{mpa("0.0.0.4"), mpa("0.0.0.11"), pfxSlice("0.0.0.4/30", "0.0.0.8/30")},
-		{mpa("10.0.0.0"), mpa("11.10.255.255"), pfxSlice("10.0.0.0/8", "11.0.0.0/13", "11.8.0.0/15", "11.10.0.0/16")},
-		{mpa("fe80::"), mpa("fe80::8"), pfxSlice("fe80::/125", "fe80::8/128")},
-
-		{mpa("0.0.0.1"), mpa("255.255.255.254"), pfxSlice(
-			"0.0.0.1/32",
-			"0.0.0.2/31",
-			"0.0.0.4/30",
-			"0.0.0.8/29",
-			"0.0.0.16/28",
-			"0.0.0.32/27",
-			"0.0.0.64/26",
-			"0.0.0.128/25",
-			"0.0.1.0/24",
-			"0.0.2.0/23",
-			"0.0.4.0/22",
-			"0.0.8.0/21",
-			"0.0.16.0/20",
-			"0.0.32.0/19",
-			"0.0.64.0/18",
-			"0.0.128.0/17",
-			"0.1.0.0/16",
-			"0.2.0.0/15",
-			"0.4.0.0/14",
-			"0.8.0.0/13",
-			"0.16.0.0/12",
-			"0.32.0.0/11",
-			"0.64.0.0/10",
-			"0.128.0.0/9",
-			"1.0.0.0/8",
-			"2.0.0.0/7",
-			"4.0.0.0/6",
-			"8.0.0.0/5",
-			"16.0.0.0/4",
-			"32.0.0.0/3",
-			"64.0.0.0/2",
-			"128.0.0.0/2",
-			"192.0.0.0/3",
-			"224.0.0.0/4",
-			"240.0.0.0/5",
-			"248.0.0.0/6",
-			"252.0.0.0/7",
-			"254.0.0.0/8",
-			"255.0.0.0/9",
-			"255.128.0.0/10",
-			"255.192.0.0/11",
-			"255.224.0.0/12",
-			"255.240.0.0/13",
-			"255.248.0.0/14",
-			"255.252.0.0/15",
-			"255.254.0.0/16",
-			"255.255.0.0/17",
-			"255.255.128.0/18",
-			"255.255.192.0/19",
-			"255.255.224.0/20",
-			"255.255.240.0/21",
-			"255.255.248.0/22",
-			"255.255.252.0/23",
-			"255.255.254.0/24",
-			"255.255.255.0/25",
-			"255.255.255.128/26",
-			"255.255.255.192/27",
-			"255.255.255.224/28",
-			"255.255.255.240/29",
-			"255.255.255.248/30",
-			"255.255.255.252/31",
-			"255.255.255.254/32",
-		)},
-
-		{mpa("::1"), mpa("ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe"), pfxSlice(
-			"::1/128",
-			"::2/127",
-			"::4/126",
-			"::8/125",
-			"::10/124",
-			"::20/123",
-			"::40/122",
-			"::80/121",
-			"::100/120",
-			"::200/119",
-			"::400/118",
-			"::800/117",
-			"::1000/116",
-			"::2000/115",
-			"::4000/114",
-			"::8000/113",
-			"::1:0/112",
-			"::2:0/111",
-			"::4:0/110",
-			"::8:0/109",
-			"::10:0/108",
-			"::20:0/107",
-			"::40:0/106",
-			"::80:0/105",
-			"::100:0/104",
-			"::200:0/103",
-			"::400:0/102",
-			"::800:0/101",
-			"::1000:0/100",
-			"::2000:0/99",
-			"::4000:0/98",
-			"::8000:0/97",
-			"::1:0:0/96",
-			"::2:0:0/95",
-			"::4:0:0/94",
-			"::8:0:0/93",
-			"::10:0:0/92",
-			"::20:0:0/91",
-			"::40:0:0/90",
-			"::80:0:0/89",
-			"::100:0:0/88",
-			"::200:0:0/87",
-			"::400:0:0/86",
-			"::800:0:0/85",
-			"::1000:0:0/84",
-			"::2000:0:0/83",
-			"::4000:0:0/82",
-			"::8000:0:0/81",
-			"::1:0:0:0/80",
-			"::2:0:0:0/79",
-			"::4:0:0:0/78",
-			"::8:0:0:0/77",
-			"::10:0:0:0/76",
-			"::20:0:0:0/75",
-			"::40:0:0:0/74",
-			"::80:0:0:0/73",
-			"::100:0:0:0/72",
-			"::200:0:0:0/71",
-			"::400:0:0:0/70",
-			"::800:0:0:0/69",
-			"::1000:0:0:0/68",
-			"::2000:0:0:0/67",
-			"::4000:0:0:0/66",
-			"::8000:0:0:0/65",
-			"0:0:0:1::/64",
-			"0:0:0:2::/63",
-			"0:0:0:4::/62",
-			"0:0:0:8::/61",
-			"0:0:0:10::/60",
-			"0:0:0:20::/59",
-			"0:0:0:40::/58",
-			"0:0:0:80::/57",
-			"0:0:0:100::/56",
-			"0:0:0:200::/55",
-			"0:0:0:400::/54",
-			"0:0:0:800::/53",
-			"0:0:0:1000::/52",
-			"0:0:0:2000::/51",
-			"0:0:0:4000::/50",
-			"0:0:0:8000::/49",
-			"0:0:1::/48",
-			"0:0:2::/47",
-			"0:0:4::/46",
-			"0:0:8::/45",
-			"0:0:10::/44",
-			"0:0:20::/43",
-			"0:0:40::/42",
-			"0:0:80::/41",
-			"0:0:100::/40",
-			"0:0:200::/39",
-			"0:0:400::/38",
-			"0:0:800::/37",
-			"0:0:1000::/36",
-			"0:0:2000::/35",
-			"0:0:4000::/34",
-			"0:0:8000::/33",
-			"0:1::/32",
-			"0:2::/31",
-			"0:4::/30",
-			"0:8::/29",
-			"0:10::/28",
-			"0:20::/27",
-			"0:40::/26",
-			"0:80::/25",
-			"0:100::/24",
-			"0:200::/23",
-			"0:400::/22",
-			"0:800::/21",
-			"0:1000::/20",
-			"0:2000::/19",
-			"0:4000::/18",
-			"0:8000::/17",
-			"1::/16",
-			"2::/15",
-			"4::/14",
-			"8::/13",
-			"10::/12",
-			"20::/11",
-			"40::/10",
-			"80::/9",
-			"100::/8",
-			"200::/7",
-			"400::/6",
-			"800::/5",
-			"1000::/4",
-			"2000::/3",
-			"4000::/2",
-			"8000::/2",
-			"c000::/3",
-			"e000::/4",
-			"f000::/5",
-			"f800::/6",
-			"fc00::/7",
-			"fe00::/8",
-			"ff00::/9",
-			"ff80::/10",
-			"ffc0::/11",
-			"ffe0::/12",
-			"fff0::/13",
-			"fff8::/14",
-			"fffc::/15",
-			"fffe::/16",
-			"ffff::/17",
-			"ffff:8000::/18",
-			"ffff:c000::/19",
-			"ffff:e000::/20",
-			"ffff:f000::/21",
-			"ffff:f800::/22",
-			"ffff:fc00::/23",
-			"ffff:fe00::/24",
-			"ffff:ff00::/25",
-			"ffff:ff80::/26",
-			"ffff:ffc0::/27",
-			"ffff:ffe0::/28",
-			"ffff:fff0::/29",
-			"ffff:fff8::/30",
-			"ffff:fffc::/31",
-			"ffff:fffe::/32",
-			"ffff:ffff::/33",
-			"ffff:ffff:8000::/34",
-			"ffff:ffff:c000::/35",
-			"ffff:ffff:e000::/36",
-			"ffff:ffff:f000::/37",
-			"ffff:ffff:f800::/38",
-			"ffff:ffff:fc00::/39",
-			"ffff:ffff:fe00::/40",
-			"ffff:ffff:ff00::/41",
-			"ffff:ffff:ff80::/42",
-			"ffff:ffff:ffc0::/43",
-			"ffff:ffff:ffe0::/44",
-			"ffff:ffff:fff0::/45",
-			"ffff:ffff:fff8::/46",
-			"ffff:ffff:fffc::/47",
-			"ffff:ffff:fffe::/48",
-			"ffff:ffff:ffff::/49",
-			"ffff:ffff:ffff:8000::/50",
-			"ffff:ffff:ffff:c000::/51",
-			"ffff:ffff:ffff:e000::/52",
-			"ffff:ffff:ffff:f000::/53",
-			"ffff:ffff:ffff:f800::/54",
-			"ffff:ffff:ffff:fc00::/55",
-			"ffff:ffff:ffff:fe00::/56",
-			"ffff:ffff:ffff:ff00::/57",
-			"ffff:ffff:ffff:ff80::/58",
-			"ffff:ffff:ffff:ffc0::/59",
-			"ffff:ffff:ffff:ffe0::/60",
-			"ffff:ffff:ffff:fff0::/61",
-			"ffff:ffff:ffff:fff8::/62",
-			"ffff:ffff:ffff:fffc::/63",
-			"ffff:ffff:ffff:fffe::/64",
-			"ffff:ffff:ffff:ffff::/65",
-			"ffff:ffff:ffff:ffff:8000::/66",
-			"ffff:ffff:ffff:ffff:c000::/67",
-			"ffff:ffff:ffff:ffff:e000::/68",
-			"ffff:ffff:ffff:ffff:f000::/69",
-			"ffff:ffff:ffff:ffff:f800::/70",
-			"ffff:ffff:ffff:ffff:fc00::/71",
-			"ffff:ffff:ffff:ffff:fe00::/72",
-			"ffff:ffff:ffff:ffff:ff00::/73",
-			"ffff:ffff:ffff:ffff:ff80::/74",
-			"ffff:ffff:ffff:ffff:ffc0::/75",
-			"ffff:ffff:ffff:ffff:ffe0::/76",
-			"ffff:ffff:ffff:ffff:fff0::/77",
-			"ffff:ffff:ffff:ffff:fff8::/78",
-			"ffff:ffff:ffff:ffff:fffc::/79",
-			"ffff:ffff:ffff:ffff:fffe::/80",
-			"ffff:ffff:ffff:ffff:ffff::/81",
-			"ffff:ffff:ffff:ffff:ffff:8000::/82",
-			"ffff:ffff:ffff:ffff:ffff:c000::/83",
-			"ffff:ffff:ffff:ffff:ffff:e000::/84",
-			"ffff:ffff:ffff:ffff:ffff:f000::/85",
-			"ffff:ffff:ffff:ffff:ffff:f800::/86",
-			"ffff:ffff:ffff:ffff:ffff:fc00::/87",
-			"ffff:ffff:ffff:ffff:ffff:fe00::/88",
-			"ffff:ffff:ffff:ffff:ffff:ff00::/89",
-			"ffff:ffff:ffff:ffff:ffff:ff80::/90",
-			"ffff:ffff:ffff:ffff:ffff:ffc0::/91",
-			"ffff:ffff:ffff:ffff:ffff:ffe0::/92",
-			"ffff:ffff:ffff:ffff:ffff:fff0::/93",
-			"ffff:ffff:ffff:ffff:ffff:fff8::/94",
-			"ffff:ffff:ffff:ffff:ffff:fffc::/95",
-			"ffff:ffff:ffff:ffff:ffff:fffe::/96",
-			"ffff:ffff:ffff:ffff:ffff:ffff::/97",
-			"ffff:ffff:ffff:ffff:ffff:ffff:8000:0/98",
-			"ffff:ffff:ffff:ffff:ffff:ffff:c000:0/99",
-			"ffff:ffff:ffff:ffff:ffff:ffff:e000:0/100",
-			"ffff:ffff:ffff:ffff:ffff:ffff:f000:0/101",
-			"ffff:ffff:ffff:ffff:ffff:ffff:f800:0/102",
-			"ffff:ffff:ffff:ffff:ffff:ffff:fc00:0/103",
-			"ffff:ffff:ffff:ffff:ffff:ffff:fe00:0/104",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ff00:0/105",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ff80:0/106",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffc0:0/107",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffe0:0/108",
-			"ffff:ffff:ffff:ffff:ffff:ffff:fff0:0/109",
-			"ffff:ffff:ffff:ffff:ffff:ffff:fff8:0/110",
-			"ffff:ffff:ffff:ffff:ffff:ffff:fffc:0/111",
-			"ffff:ffff:ffff:ffff:ffff:ffff:fffe:0/112",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:0/113",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:8000/114",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:c000/115",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:e000/116",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:f000/117",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:f800/118",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:fc00/119",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:fe00/120",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:ff00/121",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:ff80/122",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffc0/123",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffe0/124",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:fff0/125",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:fff8/126",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffc/127",
-			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe/128",
-		)},
-	}
-
-	for _, tt := range tests {
-		got := extnetip.Prefixes(tt.first, tt.last)
-
-		if !reflect.DeepEqual(got, tt.want) {
-			t.Errorf("failed %s->%s. got:", tt.first, tt.last)
-			for _, v := range got {
-				t.Errorf("  %v", v)
+			// test Prefixes()
+			got = extnetip.Prefixes(tt.first, tt.last)
+			if err := assertCoversRange(tt.first, tt.last, got, tt.wantLen); err != nil {
+				t.Errorf("Prefixes(%s,%s): %v, got %v", tt.first, tt.last, err, got)
 			}
-			t.Error("want:\n")
-			for _, v := range tt.want {
-				t.Errorf("  %v", v)
-			}
-		}
+		})
 	}
 }
 
@@ -992,5 +336,50 @@ func TestCommonPrefix(t *testing.T) {
 				t.Errorf("%s: expected %v, got %v", tt.name, tt.expect, got)
 			}
 		})
+	}
+}
+
+func TestAll_invalidInput_returnsSafeIterator(t *testing.T) {
+	t.Parallel()
+
+	// All of these must return a non-nil, safe-to-call iterator
+	// that yields zero elements, without panicking.
+	tests := []struct {
+		name  string
+		first netip.Addr
+		last  netip.Addr
+	}{
+		{"zero addrs", netip.Addr{}, netip.Addr{}},
+		{"wrong order", mpa("0.0.0.1"), mpa("0.0.0.0")},
+		{"mixed v4/v6", mpa("0.0.0.1"), mpa("::1")},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			it := extnetip.All(tt.first, tt.last)
+			if it == nil {
+				t.Fatal("All returned nil iterator, want non-nil zeroIter")
+			}
+			count := 0
+			for range it {
+				count++
+			}
+			if count != 0 {
+				t.Errorf("expected 0 elements, got %d", count)
+			}
+		})
+	}
+}
+
+func TestPrefixesAppend_appendsToExisting(t *testing.T) {
+	t.Parallel()
+	sentinel := mpp("192.0.2.0/24")
+	dst := []netip.Prefix{sentinel}
+	result := extnetip.PrefixesAppend(dst, mpa("10.0.0.0"), mpa("10.0.0.3"))
+	if result[0] != sentinel {
+		t.Errorf("first element overwritten: got %v, want %v", result[0], sentinel)
+	}
+	if len(result) < 2 {
+		t.Errorf("expected at least 2 elements, got %d", len(result))
 	}
 }

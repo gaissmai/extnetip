@@ -20,7 +20,7 @@ var (
 // cover of the range [first, last] with no gaps at the boundaries.
 func assertCoversRange(first, last netip.Addr, pfxs []netip.Prefix, lenWanted int) error {
 	if len(pfxs) != lenWanted {
-		return fmt.Errorf("got %d prefix(es), expected %d", lenWanted, len(pfxs))
+		return fmt.Errorf("got %d prefix(es), expected %d", len(pfxs), lenWanted)
 	}
 
 	// first prefix must start at 'first'
@@ -33,8 +33,13 @@ func assertCoversRange(first, last netip.Addr, pfxs []netip.Prefix, lenWanted in
 		return fmt.Errorf("last prefix ends at %v, want %v", l, last)
 	}
 
-	// consecutive prefixes must be adjacent (no gaps, no overlaps)
+	// consecutive prefixes must be adjacent (no gaps, no overlaps) with no overlaps
 	for i := 1; i < len(pfxs); i++ {
+
+		if pfxs[i-1].Overlaps(pfxs[i]) {
+			return fmt.Errorf("%v overlaps %v", pfxs[i-1], pfxs[i])
+		}
+
 		_, prevLast := extnetip.Range(pfxs[i-1])
 		curFirst, _ := extnetip.Range(pfxs[i])
 

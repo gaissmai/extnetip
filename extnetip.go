@@ -40,7 +40,7 @@ func Range(p netip.Prefix) (first, last netip.Addr) {
 		// IPv4 addresses are embedded in IPv6 space with a 96-bit prefix
 		bits += 96
 	}
-	mask := mask6(bits) // get the network mask as uint128
+	mask := mask6[bits] // get the network mask as uint128
 
 	// Calculate first IP in range: ip & mask
 	first128 := pa.ip.and(mask)
@@ -139,7 +139,7 @@ func All(first, last netip.Addr) iter.Seq[netip.Prefix] {
 // Otherwise recursively splits the range into halves and processes both.
 //
 // All bit arithmetic and masking is done in uint128 space.
-func allRec(a, b addr, yield func(netip.Prefix) bool) bool {
+func allRec(a, b addrT, yield func(netip.Prefix) bool) bool {
 	// Check if [a, b] is exactly a prefix range
 	lcp, ok := a.ip.prefixOK(b.ip)
 	if ok {
@@ -151,25 +151,13 @@ func allRec(a, b addr, yield func(netip.Prefix) bool) bool {
 	}
 
 	// Range doesn't match a single CIDR - split it in half
-	mask := mask6(lcp + 1)                                 // Mask for one bit longer prefix
+	// lcp < 128 since prefixOK returned ok=false (a != b), ensuring lcp+1 <= 128 for mask6 indexing
+	mask := mask6[lcp+1]                                   // Mask for one bit longer prefix
 	leftUpper := fromUint128(a.ip.or(mask.not()), a.is4()) // Left half upper bound
 	rightLower := fromUint128(b.ip.and(mask), a.is4())     // Right half lower bound
 
 	// Recursively process both halves
 	return allRec(a, leftUpper, yield) && allRec(rightLower, b, yield)
-}
-
-// Deprecated: Prefixes is deprecated. Use the iterator version [All] instead.
-func Prefixes(first, last netip.Addr) []netip.Prefix {
-	return PrefixesAppend(nil, first, last)
-}
-
-// Deprecated: PrefixesAppend is deprecated. Use the iterator version [All] instead.
-func PrefixesAppend(dst []netip.Prefix, first, last netip.Addr) []netip.Prefix {
-	for pfx := range All(first, last) {
-		dst = append(dst, pfx)
-	}
-	return dst
 }
 
 // CommonPrefix returns the longest prefix shared by pfx1 and pfx2.

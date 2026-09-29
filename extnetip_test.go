@@ -1,20 +1,106 @@
 // Package extnetip_test contains integration tests and examples
 // for the extnetip package.
 // These tests verify the correct behavior of IP range and prefix conversion functions.
-package extnetip_test
+package extnetip
 
 import (
+	"encoding/binary"
 	"fmt"
+	"iter"
+	"math/rand/v2"
 	"net/netip"
+	"slices"
 	"testing"
+)
 
-	"github.com/gaissmai/extnetip"
+const (
+	n    = 2 << 2
+	mask = n - 1
 )
 
 var (
 	mpa = netip.MustParseAddr
 	mpp = netip.MustParsePrefix
+
+	ipv4 = slices.Collect(randIP(v4, n))
+	ipv6 = slices.Collect(randIP(v6, n))
+
+	ipv4Pfxs = slices.Collect(randPfx(v4, n))
+	ipv6Pfxs = slices.Collect(randPfx(v6, n))
 )
+
+//
+// ########### Helper ###########
+//
+
+// randIP returns an iterator (iter.Seq) yielding up to n deterministically
+// pseudo-random netip.Addr instances for the specified addressFamily.
+//
+// If n <= 0, the iterator yields nothing. Iteration terminates early if
+// the yield function returns false.
+func randIP(af addrFamily, n int) iter.Seq[netip.Addr] {
+	return func(yield func(netip.Addr) bool) {
+		randSrc := rand.New(rand.NewPCG(42, 4242))
+		if n <= 0 {
+			return
+		}
+
+		switch af {
+		case v4:
+			for range n {
+				var b [4]byte
+				binary.BigEndian.PutUint32(b[:], randSrc.Uint32())
+
+				if !yield(netip.AddrFrom4(b)) {
+					return
+				}
+			}
+
+		case v6:
+			for range n {
+				var b [16]byte
+				binary.BigEndian.PutUint64(b[0:8], randSrc.Uint64())
+				binary.BigEndian.PutUint64(b[8:16], randSrc.Uint64())
+
+				if !yield(netip.AddrFrom16(b)) {
+					return
+				}
+			}
+
+		}
+	}
+}
+
+// randPfx returns an iterator (iter.Seq) yielding up to n deterministically
+// pseudo-random netip.Prefix instances for the specified addressFamily.
+//
+// Generated prefixes are automatically masked to canonical representation by
+// netip.PrefixFrom, zeroing out host bits beyond the prefix length.
+//
+// If n <= 0, the iterator yields nothing. Iteration terminates early if
+// the yield function returns false.
+func randPfx(af addrFamily, n int) iter.Seq[netip.Prefix] {
+	return func(yield func(netip.Prefix) bool) {
+		randSrc := rand.New(rand.NewPCG(42, 4242))
+		if n <= 0 {
+			return
+		}
+
+		for ip := range randIP(af, n) {
+			var bits int
+			switch af {
+			case v4:
+				bits = randSrc.IntN(33) // 0..32
+			case v6:
+				bits = randSrc.IntN(129) // 0..128
+			}
+
+			if !yield(netip.PrefixFrom(ip, bits).Masked()) {
+				return
+			}
+		}
+	}
+}
 
 // assertCoversRange verifies that pfxs is a minimal, contiguous, non-overlapping
 // cover of the range [first, last] with no gaps at the boundaries.
@@ -29,12 +115,12 @@ func assertCoversRange(first, last netip.Addr, pfxs []netip.Prefix, lenWanted in
 	}
 
 	// first prefix must start at 'first'
-	if f, _ := extnetip.Range(pfxs[0]); f != first {
+	if f, _ := Range(pfxs[0]); f != first {
 		return fmt.Errorf("first prefix starts at %v, want %v", f, first)
 	}
 
 	// last prefix must end at 'last'
-	if _, l := extnetip.Range(pfxs[len(pfxs)-1]); l != last {
+	if _, l := Range(pfxs[len(pfxs)-1]); l != last {
 		return fmt.Errorf("last prefix ends at %v, want %v", l, last)
 	}
 
@@ -45,8 +131,8 @@ func assertCoversRange(first, last netip.Addr, pfxs []netip.Prefix, lenWanted in
 			return fmt.Errorf("%v overlaps %v", pfxs[i-1], pfxs[i])
 		}
 
-		_, prevLast := extnetip.Range(pfxs[i-1])
-		curFirst, _ := extnetip.Range(pfxs[i])
+		_, prevLast := Range(pfxs[i-1])
+		curFirst, _ := Range(pfxs[i])
 
 		if prevLast.Next() != curFirst {
 			return fmt.Errorf("gap between prefix %v and %v", pfxs[i-1], pfxs[i])
@@ -55,6 +141,10 @@ func assertCoversRange(first, last netip.Addr, pfxs []netip.Prefix, lenWanted in
 
 	return nil
 }
+
+//
+// ########### Tests ###########
+//
 
 func TestRange(t *testing.T) {
 	t.Parallel()
@@ -103,7 +193,7 @@ func TestRange(t *testing.T) {
 	for n, tt := range tests {
 		t.Run(fmt.Sprintf("%d", n), func(t *testing.T) {
 			t.Parallel()
-			first, last := extnetip.Range(tt.pfx)
+			first, last := Range(tt.pfx)
 			if first != tt.first {
 				t.Errorf("Range(%s), got first: %s, expected: %s", tt.pfx, first, tt.first)
 			}
@@ -131,6 +221,18 @@ func TestPrefix(t *testing.T) {
 		{
 			mpa("0.0.0.0"), // wrong versions
 			mpa("::"),
+			netip.Prefix{},
+			false,
+		},
+		{
+			mpa("0.0.0.0"), // wrong versions
+			mpa("::ffff:10.0.0.0"),
+			netip.Prefix{},
+			false,
+		},
+		{
+			mpa("::"), // wrong versions
+			mpa("::ffff:10.0.0.0"),
 			netip.Prefix{},
 			false,
 		},
@@ -211,7 +313,7 @@ func TestPrefix(t *testing.T) {
 	for n, tt := range tests {
 		t.Run(fmt.Sprintf("%d", n), func(t *testing.T) {
 			t.Parallel()
-			p, ok := extnetip.Prefix(tt.ip1, tt.ip2)
+			p, ok := Prefix(tt.ip1, tt.ip2)
 			if ok != tt.ok {
 				t.Errorf("Prefix(%s, %s), got ok: %v, expected: %v", tt.ip1, tt.ip2, ok, tt.ok)
 			}
@@ -222,7 +324,7 @@ func TestPrefix(t *testing.T) {
 	}
 }
 
-func TestAll_and_Prefixes(t *testing.T) {
+func TestAll(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		first   netip.Addr
@@ -247,18 +349,12 @@ func TestAll_and_Prefixes(t *testing.T) {
 			var got []netip.Prefix
 
 			// test All()
-			for pfx := range extnetip.All(tt.first, tt.last) {
+			for pfx := range All(tt.first, tt.last) {
 				got = append(got, pfx)
 			}
 
 			if err := assertCoversRange(tt.first, tt.last, got, tt.wantLen); err != nil {
 				t.Errorf("All(%s,%s): %v, got %v", tt.first, tt.last, err, got)
-			}
-
-			// test Prefixes()
-			got = extnetip.Prefixes(tt.first, tt.last)
-			if err := assertCoversRange(tt.first, tt.last, got, tt.wantLen); err != nil {
-				t.Errorf("Prefixes(%s,%s): %v, got %v", tt.first, tt.last, err, got)
 			}
 		})
 	}
@@ -333,7 +429,7 @@ func TestCommonPrefix(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := extnetip.CommonPrefix(tt.pfx1, tt.pfx2)
+			got := CommonPrefix(tt.pfx1, tt.pfx2)
 
 			if !tt.expect.IsValid() {
 				if got.IsValid() {
@@ -349,7 +445,7 @@ func TestCommonPrefix(t *testing.T) {
 	}
 }
 
-func TestAll_invalidInput_returnsSafeIterator(t *testing.T) {
+func TestAll_InvalidInput(t *testing.T) {
 	t.Parallel()
 
 	// All of these must return a non-nil, safe-to-call iterator
@@ -367,7 +463,7 @@ func TestAll_invalidInput_returnsSafeIterator(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			it := extnetip.All(tt.first, tt.last)
+			it := All(tt.first, tt.last)
 			if it == nil {
 				t.Fatal("All returned nil iterator, want non-nil zeroIter")
 			}
@@ -382,20 +478,173 @@ func TestAll_invalidInput_returnsSafeIterator(t *testing.T) {
 	}
 }
 
-func TestPrefixesAppend_appendsToExisting(t *testing.T) {
+func TestRoundTrip(t *testing.T) {
+	// IPv6 zone identifieres are always stripped!
 	t.Parallel()
-	sentinel := mpp("192.0.2.0/24")
-	dst := []netip.Prefix{sentinel}
 
-	first := mpa("10.0.0.0")
-	last := mpa("10.0.0.5")
+	zero := netip.Addr{}
 
-	got := extnetip.PrefixesAppend(dst, first, last)
-	if got[0] != sentinel {
-		t.Errorf("first element overwritten: got %v, want %v", got[0], sentinel)
+	if wrap(unwrap(zero), &[16]byte{}) != zero {
+		t.Fatalf("RoundTrip wrap(unwrap(%s)), expect: %v, got: %v", zero, zero, wrap(unwrap(zero), &[16]byte{}))
 	}
 
-	if err := assertCoversRange(first, last, got[1:], 2); err != nil {
-		t.Errorf("PrefixesAppend(): %v, got %v", err, got)
+	v4 := mpa("0.0.0.0")
+	if wrap(unwrap(v4), &[16]byte{}) != v4 {
+		t.Fatalf("RoundTrip wrap(unwrap(%s)), expect: %v, got: %v", v4, v4, wrap(unwrap(v4), &[16]byte{}))
 	}
+
+	v4 = mpa("255.255.255.255")
+	if wrap(unwrap(v4), &[16]byte{}) != v4 {
+		t.Fatalf("RoundTrip wrap(unwrap(%s)), expect: %v, got: %v", v4, v4, wrap(unwrap(v4), &[16]byte{}))
+	}
+
+	v4in6 := mpa("::ffff:127.0.0.1")
+	if wrap(unwrap(v4in6), &[16]byte{}) != v4in6 {
+		t.Fatalf("RoundTrip wrap(unwrap(%s)), expect: %v, got: %v", v4in6, v4in6, wrap(unwrap(v4in6), &[16]byte{}))
+	}
+
+	v6 := mpa("::")
+	if wrap(unwrap(v6), &[16]byte{}) != v6 {
+		t.Fatalf("RoundTrip wrap(unwrap(%s)), expect: %v, got: %v", v6, v6, wrap(unwrap(v6), &[16]byte{}))
+	}
+
+	v6 = mpa("2001:db8::1")
+	if wrap(unwrap(v6), &[16]byte{}) != v6 {
+		t.Fatalf("RoundTrip wrap(unwrap(%s)), expect: %v, got: %v", v6, v6, wrap(unwrap(v6), &[16]byte{}))
+	}
+}
+
+func TestModify(t *testing.T) {
+	// IPv6 zone identifieres are always stripped!
+	t.Parallel()
+	p4 := unwrap(mpa("0.0.0.0"))
+	p4.ip.lo++ // add one
+
+	if wrap(p4, &[16]byte{}) != mpa("0.0.0.1") {
+		t.Fatalf("unwrap -> add one -> wrap not as expected")
+	}
+
+	p4.ip.lo-- // sub one
+	if wrap(p4, &[16]byte{}) != mpa("0.0.0.0") {
+		t.Fatalf("unwrap -> sub one -> wrap not as expected")
+	}
+
+	// --
+
+	p6 := unwrap(mpa("::"))
+	p6.ip.lo++ // add one
+
+	if wrap(p6, &[16]byte{}) != mpa("::1") {
+		t.Fatalf("unwrap -> add one -> wrap not as expected")
+	}
+
+	p6.ip.lo-- // sub one
+	if wrap(p6, &[16]byte{}) != mpa("::") {
+		t.Fatalf("unwrap -> sub one -> wrap not as expected")
+	}
+
+	// --
+
+	v4mappedv6 := unwrap(mpa("::ffff:0.0.0.0"))
+	v4mappedv6.ip.lo-- // sub one, cross v4in6 to v6 boreder
+
+	if wrap(v4mappedv6, &[16]byte{}) != mpa("::fffe:255.255.255.255") {
+		t.Fatalf("unwrap -> sub one -> wrap not as expected")
+	}
+
+	v4mappedv6.ip.lo++ // add one, cross v6 to v4in6 boreder
+	if wrap(v4mappedv6, &[16]byte{}) != mpa("::ffff:0.0.0.0") {
+		t.Fatalf("unwrap -> add one -> wrap not as expected")
+	}
+}
+
+//
+// ########### BenchMarks ###########
+//
+
+func BenchmarkRange(b *testing.B) {
+	b.Run("v4", func(b *testing.B) {
+		for i := 0; b.Loop(); i++ {
+			Range(ipv4Pfxs[i&mask])
+		}
+	})
+
+	b.Run("v6", func(b *testing.B) {
+		for i := 0; b.Loop(); i++ {
+			Range(ipv6Pfxs[i&mask])
+		}
+	})
+}
+
+func BenchmarkPrefix(b *testing.B) {
+	b.Run("v4", func(b *testing.B) {
+		firsts := make([]netip.Addr, 0, len(ipv4Pfxs))
+		lasts := make([]netip.Addr, 0, len(ipv4Pfxs))
+
+		for _, pfx := range ipv4Pfxs {
+			first, last := Range(pfx)
+			firsts = append(firsts, first)
+			lasts = append(lasts, last)
+		}
+
+		for i := 0; b.Loop(); i++ {
+			Prefix(firsts[i&mask], lasts[i&mask])
+		}
+	})
+
+	b.Run("v6", func(b *testing.B) {
+		firsts := make([]netip.Addr, 0, len(ipv6Pfxs))
+		lasts := make([]netip.Addr, 0, len(ipv6Pfxs))
+
+		for _, pfx := range ipv6Pfxs {
+			first, last := Range(pfx)
+			firsts = append(firsts, first)
+			lasts = append(lasts, last)
+		}
+
+		for i := 0; b.Loop(); i++ {
+			Prefix(firsts[i&mask], lasts[i&mask])
+		}
+	})
+
+}
+
+func BenchmarkUnwrap(b *testing.B) {
+	b.Run("v4", func(b *testing.B) {
+		for i := 0; b.Loop(); i++ {
+			unwrap(ipv4[i&mask])
+		}
+	})
+
+	b.Run("v6", func(b *testing.B) {
+		for i := 0; b.Loop(); i++ {
+			unwrap(ipv6[i&mask])
+		}
+	})
+
+}
+
+func BenchmarkWrap(b *testing.B) {
+	b.Run("v4", func(b *testing.B) {
+		addrs := make([]addrT, 0, len(ipv4))
+		for _, ip := range ipv4 {
+			addrs = append(addrs, unwrap(ip))
+		}
+
+		for i := 0; b.Loop(); i++ {
+			wrap(addrs[i&mask], &[16]byte{})
+		}
+	})
+
+	b.Run("v6", func(b *testing.B) {
+		addrs := make([]addrT, 0, len(ipv6))
+		for _, ip := range ipv6 {
+			addrs = append(addrs, unwrap(ip))
+		}
+
+		for i := 0; b.Loop(); i++ {
+			wrap(addrs[i&mask], &[16]byte{})
+		}
+	})
+
 }

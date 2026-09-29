@@ -18,29 +18,35 @@ import (
 // empty iterator for wrong input parameter
 var zeroIter iter.Seq[netip.Prefix] = func(func(netip.Prefix) bool) {}
 
+type addrFamily uint
+
+const (
+	invalid addrFamily = iota
+	v4
+	v6
+	// v4in6 handled as v6
+)
+
 // Range returns the inclusive IP address range [first, last]
 // covered by the given prefix p.
 //
-// The prefix p does not have to be canonical.
-//
 // If p is invalid, Range returns zero values.
-//
-// The range calculation is performed by masking the uint128
-// representation according to the prefix bits.
 func Range(p netip.Prefix) (first, last netip.Addr) {
 	if !p.IsValid() {
 		return
 	}
+	ip := p.Addr()
+	is4 := ip.Is4()
 
 	// Extract internal representation of the prefix address as addr struct
-	pa := unwrap(p.Addr())
+	pa := unwrap(ip)
 
 	bits := p.Bits()
-	if pa.is4() {
+	if is4 {
 		// IPv4 addresses are embedded in IPv6 space with a 96-bit prefix
 		bits += 96
 	}
-	mask := mask6(bits) // get the network mask as uint128
+	mask := mask6[bits] // get the network mask as uint128
 
 	// Calculate first IP in range: ip & mask
 	first128 := pa.ip.and(mask)
@@ -49,8 +55,8 @@ func Range(p netip.Prefix) (first, last netip.Addr) {
 	last128 := first128.or(mask.not())
 
 	// wrap back to netip.Addr, preserving IPv4 or IPv6 form
-	first = wrap(fromUint128(first128, pa.is4()))
-	last = wrap(fromUint128(last128, pa.is4()))
+	first = wrap(fromUint128(first128, is4), &[16]byte{})
+	last = wrap(fromUint128(last128, is4), &[16]byte{})
 
 	return
 }
@@ -60,23 +66,20 @@ func Range(p netip.Prefix) (first, last netip.Addr) {
 // It returns the prefix and ok=true if so.
 //
 // Returns ok=false for ranges that don't align exactly to a prefix,
-// invalid IPs, mismatched versions or first > last.
-//
-// The calculation is done by analyzing the uint128 values
-// and checking prefix match conditions.
+// invalid IPs, mismatched IP versions or first > last.
 func Prefix(first, last netip.Addr) (prefix netip.Prefix, ok bool) {
-	// invalid IP
+	// check validity
 	if !first.IsValid() || !last.IsValid() {
+		return
+	}
+
+	// Check address family consistency, 4in6 is handled as v6.
+	if first.Is4() != last.Is4() {
 		return
 	}
 
 	a := unwrap(first) // low-level uint128 view of first
 	b := unwrap(last)  // low-level uint128 view of last
-
-	// Check address family consistency.
-	if a.is4() != b.is4() {
-		return
-	}
 
 	// Ensure ordering: first <= last
 	if a.ip.compare(b.ip) == 1 {
@@ -89,7 +92,7 @@ func Prefix(first, last netip.Addr) (prefix netip.Prefix, ok bool) {
 		return
 	}
 
-	if a.is4() {
+	if first.Is4() {
 		// For IPv4 mapped in IPv6 space, adjust prefix length
 		bits -= 96
 	}
@@ -101,7 +104,7 @@ func Prefix(first, last netip.Addr) (prefix netip.Prefix, ok bool) {
 // All returns an iterator over all netip.Prefix values that
 // cover the entire inclusive IP range [first, last].
 //
-// If either IP is invalid, the order is wrong, or versions differ,
+// If either IP is invalid, the order is wrong, or IP versions differ,
 // the iterator yields no results.
 //
 // This uses a recursive subdivision approach to partition
@@ -112,13 +115,13 @@ func All(first, last netip.Addr) iter.Seq[netip.Prefix] {
 		return zeroIter
 	}
 
-	a := unwrap(first) // low-level uint128 view of first
-	b := unwrap(last)  // low-level uint128 view of last
-
-	// Check address family consistency.
-	if a.is4() != b.is4() {
+	// Check address family consistency, 4in6 is handled as v6.
+	if first.Is4() != last.Is4() {
 		return zeroIter
 	}
+
+	a := unwrap(first) // low-level uint128 view of first
+	b := unwrap(last)  // low-level uint128 view of last
 
 	// Ensure ordering: first <= last
 	if a.ip.compare(b.ip) == 1 {
@@ -128,7 +131,7 @@ func All(first, last netip.Addr) iter.Seq[netip.Prefix] {
 	// happy path
 	return func(yield func(netip.Prefix) bool) {
 		// Start recursive subdivision and yield prefixes
-		allRec(a, b, yield)
+		allRec(first.Is4(), a, b, yield)
 	}
 }
 
@@ -139,37 +142,25 @@ func All(first, last netip.Addr) iter.Seq[netip.Prefix] {
 // Otherwise recursively splits the range into halves and processes both.
 //
 // All bit arithmetic and masking is done in uint128 space.
-func allRec(a, b addr, yield func(netip.Prefix) bool) bool {
+func allRec(is4 bool, a, b addrT, yield func(netip.Prefix) bool) bool {
 	// Check if [a, b] is exactly a prefix range
 	lcp, ok := a.ip.prefixOK(b.ip)
 	if ok {
 		// Found exact CIDR match - yield it and stop recursion
-		if a.is4() {
+		if is4 {
 			lcp -= 96 // Adjust for IPv4-in-IPv6 embedding
 		}
-		return yield(netip.PrefixFrom(wrap(a), lcp))
+		return yield(netip.PrefixFrom(wrap(a, &[16]byte{}), lcp))
 	}
 
 	// Range doesn't match a single CIDR - split it in half
-	mask := mask6(lcp + 1)                                 // Mask for one bit longer prefix
-	leftUpper := fromUint128(a.ip.or(mask.not()), a.is4()) // Left half upper bound
-	rightLower := fromUint128(b.ip.and(mask), a.is4())     // Right half lower bound
+	// lcp < 128 since prefixOK returned ok=false (a != b), ensuring lcp+1 <= 128 for mask6 indexing
+	mask := mask6[lcp+1]                               // Mask for one bit longer prefix
+	leftUpper := fromUint128(a.ip.or(mask.not()), is4) // Left half upper bound
+	rightLower := fromUint128(b.ip.and(mask), is4)     // Right half lower bound
 
 	// Recursively process both halves
-	return allRec(a, leftUpper, yield) && allRec(rightLower, b, yield)
-}
-
-// Deprecated: Prefixes is deprecated. Use the iterator version [All] instead.
-func Prefixes(first, last netip.Addr) []netip.Prefix {
-	return PrefixesAppend(nil, first, last)
-}
-
-// Deprecated: PrefixesAppend is deprecated. Use the iterator version [All] instead.
-func PrefixesAppend(dst []netip.Prefix, first, last netip.Addr) []netip.Prefix {
-	for pfx := range All(first, last) {
-		dst = append(dst, pfx)
-	}
-	return dst
+	return allRec(is4, a, leftUpper, yield) && allRec(is4, rightLower, b, yield)
 }
 
 // CommonPrefix returns the longest prefix shared by pfx1 and pfx2.

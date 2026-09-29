@@ -71,6 +71,21 @@ func (a *addr) is4() bool {
 	return a.z == z4
 }
 
+// As2xUint64 returns the IP address in its uint128 representation. IPv4 addresses
+// are returned as IPv4-mapped IPv6 addresses. IPv6 addresses with zones are
+// returned without their zone (use the Addr.Zone method to get it). The ip
+// zero value returns all zeroes.
+//
+// Precondition: ip must be valid (ip.IsValid() == true). Calling this function
+// with an invalid (zero-value) netip.Addr is illegal, as its zero-filled output
+// (0, 0) is indistinguishable from the IPv6 unspecified address (::).
+func As2xUint64(ip netip.Addr) (hi, lo uint64) {
+	addr := unwrap(ip)
+	hi = addr.ip.hi
+	lo = addr.ip.lo
+	return
+}
+
 // unwrap converts a netip.Addr value into the internal addr representation using unsafe.Pointer.
 //
 // This is effectively a cast that allows direct access to netip.Addr internals without copying.

@@ -42,22 +42,30 @@ func (a *addr) is4() bool {
 	return a.v4
 }
 
+// As2xUint64 returns the IP address in its uint128 representation. IPv4 addresses
+// are returned as IPv4-mapped IPv6 addresses. IPv6 addresses with zones are
+// returned without their zone (use the Addr.Zone method to get it). The ip
+// zero value returns all zeroes.
+//
+// Precondition: ip must be valid (ip.IsValid() == true). Calling this function
+// with an invalid (zero-value) netip.Addr is illegal, as its zero-filled output
+// (0, 0) is indistinguishable from the IPv6 unspecified address (::).
+func As2xUint64(ip netip.Addr) (hi, lo uint64) {
+	ip16 := ip.As16()
+
+	hi = binary.BigEndian.Uint64(ip16[:8])
+	lo = binary.BigEndian.Uint64(ip16[8:])
+
+	return hi, lo
+}
+
 // unwrap extracts the raw uint128 representation from a netip.Addr safely.
 //
-// It converts the netip.Addr into a []byte slice representing the IP.
-//
-//   - If the length is 4 (IPv4), it sets the field v4 to true and decodes the 4 bytes
-//     as a uint32 into the low 64 bits.
-//
-//   - Otherwise it decodes the first 8 bytes as the high 64 bits and the
-//     next 8 bytes as the low 64 bits of the IP.
-//
-// This function avoids unsafe.Pointer usage by working explicitly with
-// byte slices and binary decoding.
-//
-// Precondition: a is a valid IP address.
+//   - The IPv4 address is stored in its IPv4-mapped IPv6 representation in the low 64 bits.
+//   - IPv6 addresses with zones are returned without their zone.
+//   - The ip zero value returns all zeroes.
 func unwrap(a netip.Addr) (b addr) {
-	ip16 := a.As16() // nil if a isn't valid!
+	ip16 := a.As16() // zero-value array if a isn't valid
 
 	if a.Is4() {
 		b.v4 = true

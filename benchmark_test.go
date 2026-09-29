@@ -95,8 +95,7 @@ func RandPrefix(af addressFamily, n int) iter.Seq[netip.Prefix] {
 				bits = 96 + randSrc.IntN(33) // 96..128
 			}
 
-			// netip.PrefixFrom automatically masks host bits according to bit length.
-			if !yield(netip.PrefixFrom(ip, bits)) {
+			if !yield(netip.PrefixFrom(ip, bits).Masked()) {
 				return
 			}
 		}
@@ -209,13 +208,13 @@ func BenchmarkPrefix(b *testing.B) {
 func BenchmarkCommonPrefix(b *testing.B) {
 	b.Run("v4", func(b *testing.B) {
 		for i := 0; b.Loop(); i++ {
-			CommonPrefix(ipv4Pfxs[i&1023], ipv4Pfxs[i&511])
+			CommonPrefix(ipv4Pfxs[i&1023], ipv4Pfxs[(i^512)&1024])
 		}
 	})
 
 	b.Run("v6", func(b *testing.B) {
 		for i := 0; b.Loop(); i++ {
-			CommonPrefix(ipv6Pfxs[i&1023], ipv6Pfxs[i&511])
+			CommonPrefix(ipv6Pfxs[i&1023], ipv6Pfxs[(i^512)&1024])
 		}
 	})
 }

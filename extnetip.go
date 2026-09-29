@@ -18,6 +18,11 @@ import (
 // empty iterator for wrong input parameter
 var zeroIter iter.Seq[netip.Prefix] = func(func(netip.Prefix) bool) {}
 
+func As2xUint64(ip netip.Addr) (hi, lo uint64) {
+	pa := unwrap(ip)
+	return pa.ip.hi, pa.ip.lo
+}
+
 // Range returns the inclusive IP address range [first, last]
 // covered by the given prefix p.
 //

@@ -2,6 +2,24 @@ package extnetip
 
 import "testing"
 
+func BenchmarkAs2xUint64(b *testing.B) {
+	v4 := mustAddr("0.0.0.0")
+	v6 := mustAddr("::")
+
+	b.Run("As2xUint64 v4", func(b *testing.B) {
+		for b.Loop() {
+			As2xUint64(v4)
+		}
+	})
+
+	b.Run("As2xUint64 v6", func(b *testing.B) {
+		for b.Loop() {
+			As2xUint64(v6)
+		}
+	})
+
+}
+
 func BenchmarkConversion(b *testing.B) {
 	v4 := mustAddr("0.0.0.0")
 	v6 := mustAddr("::")

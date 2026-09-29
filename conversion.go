@@ -57,16 +57,14 @@ func (a *addr) is4() bool {
 //
 // Precondition: a is a valid IP address.
 func unwrap(a netip.Addr) (b addr) {
-	ip := a.AsSlice() // nil if a isn't valid!
+	ip16 := a.As16() // nil if a isn't valid!
 
-	if len(ip) == 4 {
+	if a.Is4() {
 		b.v4 = true
-		b.ip.lo = uint64(binary.BigEndian.Uint32(ip))
-		return b
 	}
 
-	b.ip.hi = binary.BigEndian.Uint64(ip[:8])
-	b.ip.lo = binary.BigEndian.Uint64(ip[8:])
+	b.ip.hi = binary.BigEndian.Uint64(ip16[:8])
+	b.ip.lo = binary.BigEndian.Uint64(ip16[8:])
 
 	return b
 }

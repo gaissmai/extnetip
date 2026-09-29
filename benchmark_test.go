@@ -17,10 +17,6 @@ const (
 	ip4in6
 )
 
-// randSrc is a deterministic PRNG source seeded with a fixed value.
-// PCG is fast, allocation-free, and safe for concurrent use via rand.New.
-var randSrc = rand.New(rand.NewPCG(42, 4242))
-
 // RandIP returns an iterator (iter.Seq) yielding up to n deterministically
 // pseudo-random netip.Addr instances for the specified addressFamily.
 //
@@ -28,6 +24,7 @@ var randSrc = rand.New(rand.NewPCG(42, 4242))
 // the yield function returns false.
 func RandIP(af addressFamily, n int) iter.Seq[netip.Addr] {
 	return func(yield func(netip.Addr) bool) {
+		randSrc := rand.New(rand.NewPCG(42, 4242))
 		if n <= 0 {
 			return
 		}
@@ -80,6 +77,7 @@ func RandIP(af addressFamily, n int) iter.Seq[netip.Addr] {
 // the yield function returns false.
 func RandPrefix(af addressFamily, n int) iter.Seq[netip.Prefix] {
 	return func(yield func(netip.Prefix) bool) {
+		randSrc := rand.New(rand.NewPCG(42, 4242))
 		if n <= 0 {
 			return
 		}

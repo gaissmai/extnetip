@@ -208,13 +208,13 @@ func BenchmarkPrefix(b *testing.B) {
 func BenchmarkCommonPrefix(b *testing.B) {
 	b.Run("v4", func(b *testing.B) {
 		for i := 0; b.Loop(); i++ {
-			CommonPrefix(ipv4Pfxs[i&1023], ipv4Pfxs[(i^512)&1024])
+			CommonPrefix(ipv4Pfxs[i&1023], ipv4Pfxs[(i^512)&1023])
 		}
 	})
 
 	b.Run("v6", func(b *testing.B) {
 		for i := 0; b.Loop(); i++ {
-			CommonPrefix(ipv6Pfxs[i&1023], ipv6Pfxs[(i^512)&1024])
+			CommonPrefix(ipv6Pfxs[i&1023], ipv6Pfxs[(i^512)&1023])
 		}
 	})
 }

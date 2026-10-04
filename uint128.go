@@ -48,24 +48,16 @@ func mask6(n int) uint128 {
 	return uint128{^(^uint64(0) >> n), ^uint64(0) << (128 - n)}
 }
 
-// u64CommonPrefixLen calculates the number of leading bits that u and v have in common.
-//
-// It computes the number of leading zero bits in the XOR of u and v,
-// effectively the length of their matching prefix in 64 bits.
-func u64CommonPrefixLen(u, v uint64) int {
-	return bits.LeadingZeros64(u ^ v)
-}
-
 // commonPrefixLen returns the number of leading bits that two uint128
 // values have in common.
-//
-// If the upper 64 bits have a full 64-bit match, it continues to check
-// the lower 64 bits.
-func (u uint128) commonPrefixLen(v uint128) (n int) {
-	if n = u64CommonPrefixLen(u.hi, v.hi); n == 64 {
-		n += u64CommonPrefixLen(u.lo, v.lo)
+func (u uint128) commonPrefixLen(v uint128) int {
+	commonHi := bits.LeadingZeros64(u.hi ^ v.hi)
+	commonLo := bits.LeadingZeros64(u.lo ^ v.lo)
+
+	if commonHi != 64 {
+		return commonHi
 	}
-	return
+	return commonLo + 64
 }
 
 // prefixOK checks if the range from u to v (inclusive) forms an exact IP prefix (CIDR block).

@@ -77,12 +77,14 @@ func As2xUint64(ip netip.Addr) (hi, lo uint64) {
 func unwrap(a netip.Addr) (b addr) {
 	ip16 := a.As16() // zero-value array if a isn't valid
 
+	b.ip.lo = binary.BigEndian.Uint64(ip16[8:])
+
 	if a.Is4() {
 		b.v4 = true
+		return
 	}
 
 	b.ip.hi = binary.BigEndian.Uint64(ip16[:8])
-	b.ip.lo = binary.BigEndian.Uint64(ip16[8:])
 
 	return b
 }

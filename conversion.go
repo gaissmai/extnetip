@@ -42,31 +42,14 @@ func (a *addr) is4() bool {
 	return a.v4
 }
 
-// As2xUint64 exposes the underlying uint128 representation (hi, lo)
-// to enable fast, inlinable calculations in the uint128 domain
-// that cannot be performed efficiently with byte arrays or slices.
-//
+// As2xUint64 returns the IP address in its 128-bit representation.
 // IPv4 addresses are returned as IPv4-mapped IPv6 addresses.
-// IPv6 addresses with zones are returned without their zone.
+// IPv6 addresses with zones are returned without their zone
+// (use the [netip.Addr.Zone] method to get it).
 // The ip zero value returns all zeroes.
-//
-// Security & Access Control Warning:
-// The returned uint64 pair represents only the raw numerical bit pattern of the address.
-// It DOES NOT encode metadata such as address family, validity (zero/invalid
-// netip.Addr), or IPv6 zone identifiers/scope.
-//
-// Callers using this word pair as a key for access-control, identity, or caching MUST
-// separately preserve and check:
-//   - Address validity (e.g., via Addr.IsValid())
-//   - Address family (IPv4 vs. IPv6) to prevent cross-family collisions
-//   - Zone/Scope ID (e.g., via Addr.Zone()) if link-local IPv6 addresses are involved
 func As2xUint64(ip netip.Addr) (hi, lo uint64) {
-	ip16 := ip.As16()
-
-	hi = binary.BigEndian.Uint64(ip16[:8])
-	lo = binary.BigEndian.Uint64(ip16[8:])
-
-	return hi, lo
+	addr := unwrap(ip)
+	return addr.ip.hi, addr.ip.lo
 }
 
 // unwrap extracts the raw uint128 representation from a netip.Addr safely.

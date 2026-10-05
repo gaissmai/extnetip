@@ -25,7 +25,13 @@ import (
 // This struct layout must match netip.Addr exactly for unsafe conversions to work.
 type addr struct {
 	ip uint128
-	z  uintptr
+	z  unsafe.Pointer
+}
+
+// prefix mirrors the memory layout of net/netip.Prefix.
+type prefix struct {
+	ip          addr
+	bitsPlusOne uint8
 }
 
 // Internal singleton pointers extracted from zero-value netip.Addr instances.
@@ -35,8 +41,8 @@ type addr struct {
 // z4    - IPv4 address representation
 // z6noz - IPv6 address representation without zone
 var (
-	z4    uintptr
-	z6noz uintptr
+	z4    unsafe.Pointer
+	z6noz unsafe.Pointer
 )
 
 // Compile-time and runtime sanity checks: fail fast if layout changes.
@@ -71,6 +77,24 @@ func (a *addr) is4() bool {
 	return a.z == z4
 }
 
+// As2xUint64 returns the IP address in its 128-bit representation.
+// IPv4 addresses are returned as IPv4-mapped IPv6 addresses.
+// IPv6 addresses with zones are returned without their zone
+// (use the [netip.Addr.Zone] method to get it).
+// The ip zero value returns all zeroes.
+func As2xUint64(ip netip.Addr) (hi, lo uint64) {
+	addr := unwrap(ip)
+	return addr.ip.hi, addr.ip.lo
+}
+
+// AddrFrom2xUint64 returns the IPv6 address given by the 2 uint64 words. An
+// IPv4-mapped IPv6 address is left as an IPv6 address. (Use Unmap to convert
+// them if needed.)
+func AddrFrom2xUint64(hi, lo uint64) netip.Addr {
+	a := addr{ip: uint128{hi: hi, lo: lo}, z: z6noz}
+	return *(*netip.Addr)(unsafe.Pointer(&a))
+}
+
 // unwrap converts a netip.Addr value into the internal addr representation using unsafe.Pointer.
 //
 // This is effectively a cast that allows direct access to netip.Addr internals without copying.
@@ -79,6 +103,13 @@ func (a *addr) is4() bool {
 // Precondition: a is a valid IP address.
 func unwrap(a netip.Addr) addr {
 	return *(*addr)(unsafe.Pointer(&a))
+}
+
+// unwrapPrefix converts a net/netip.Prefix into the internal prefix representation using unsafe.Pointer.
+//
+// This allows direct access to the underlying address and prefix length without copying or allocations.
+func unwrapPrefix(p netip.Prefix) prefix {
+	return *(*prefix)(unsafe.Pointer(&p))
 }
 
 // wrap converts from the internal addr representation back to netip.Addr.

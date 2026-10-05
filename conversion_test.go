@@ -7,10 +7,7 @@ import (
 	"testing"
 )
 
-var (
-	mustAddr = netip.MustParseAddr
-	mustPfx  = netip.MustParsePrefix
-)
+var mustAddr = netip.MustParseAddr
 
 func TestIdempotent(t *testing.T) {
 	t.Parallel()

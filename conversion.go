@@ -44,29 +44,20 @@ func (a *addr) is4() bool {
 
 // unwrap extracts the raw uint128 representation from a netip.Addr safely.
 //
-// It converts the netip.Addr into a []byte slice representing the IP.
-//
-//   - If the length is 4 (IPv4), it sets the field v4 to true and decodes the 4 bytes
-//     as a uint32 into the low 64 bits.
-//
-//   - Otherwise it decodes the first 8 bytes as the high 64 bits and the
-//     next 8 bytes as the low 64 bits of the IP.
-//
-// This function avoids unsafe.Pointer usage by working explicitly with
-// byte slices and binary decoding.
-//
-// Precondition: a is a valid IP address.
+//   - The IPv4 address is stored in its IPv4-mapped IPv6 representation in the low 64 bits.
+//   - IPv6 addresses with zones are returned without their zone.
+//   - The ip zero value returns all zeroes.
 func unwrap(a netip.Addr) (b addr) {
-	ip := a.AsSlice() // nil if a isn't valid!
+	ip16 := a.As16() // zero-value array if a isn't valid
 
-	if len(ip) == 4 {
+	b.ip.lo = binary.BigEndian.Uint64(ip16[8:])
+
+	if a.Is4() {
 		b.v4 = true
-		b.ip.lo = uint64(binary.BigEndian.Uint32(ip))
-		return b
+		return
 	}
 
-	b.ip.hi = binary.BigEndian.Uint64(ip[:8])
-	b.ip.lo = binary.BigEndian.Uint64(ip[8:])
+	b.ip.hi = binary.BigEndian.Uint64(ip16[:8])
 
 	return b
 }
@@ -91,4 +82,22 @@ func wrap(a addr) netip.Addr {
 
 	binary.BigEndian.PutUint64(a16[:8], a.ip.hi)
 	return netip.AddrFrom16(a16)
+}
+
+// As2xUint64 returns the IP address in its 128-bit representation.
+// IPv4 addresses are returned as IPv4-mapped IPv6 addresses.
+// IPv6 addresses with zones are returned without their zone
+// (use the [netip.Addr.Zone] method to get it).
+// The ip zero value returns all zeroes.
+func As2xUint64(ip netip.Addr) (hi, lo uint64) {
+	addr := unwrap(ip)
+	return addr.ip.hi, addr.ip.lo
+}
+
+// AddrFrom2xUint64 returns the IPv6 address given by the 2 uint64 words. An
+// IPv4-mapped IPv6 address is left as an IPv6 address. (Use Unmap to convert
+// them if needed.)
+func AddrFrom2xUint64(hi, lo uint64) netip.Addr {
+	a := addr{ip: uint128{hi: hi, lo: lo}, v4: false}
+	return wrap(a)
 }

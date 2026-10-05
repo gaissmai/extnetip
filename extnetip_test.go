@@ -56,6 +56,282 @@ func assertCoversRange(first, last netip.Addr, pfxs []netip.Prefix, lenWanted in
 	return nil
 }
 
+func TestAs2xUint64(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		ip   netip.Addr
+		hi   uint64
+		lo   uint64
+	}{
+		{
+			name: "IP zero",
+			ip:   netip.Addr{},
+			hi:   0,
+			lo:   0,
+		},
+		{
+			name: "IPv4 loopback (127.0.0.1)",
+			ip:   mpa("127.0.0.1"),
+			hi:   0,
+			lo:   0xffff7f000001,
+		},
+		{
+			name: "IPv4 broadcast (255.255.255.255)",
+			ip:   mpa("255.255.255.255"),
+			hi:   0,
+			lo:   0xffffffffffff,
+		},
+		{
+			name: "IPv4 arbitrary (192.168.1.254)",
+			ip:   mpa("192.168.1.254"),
+			hi:   0,
+			lo:   0xffffc0a801fe,
+		},
+		{
+			name: "IPv6 unspecified (::)",
+			ip:   mpa("::"),
+			hi:   0,
+			lo:   0,
+		},
+		{
+			name: "IPv6 loopback (::1)",
+			ip:   mpa("::1"),
+			hi:   0,
+			lo:   1,
+		},
+		{
+			name: "IPv6 all ones (ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff)",
+			ip:   mpa("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"),
+			hi:   0xffffffffffffffff,
+			lo:   0xffffffffffffffff,
+		},
+		{
+			name: "IPv6 high bits only (2001:db8::)",
+			ip:   mpa("2001:db8::"),
+			hi:   0x20010db800000000,
+			lo:   0,
+		},
+		{
+			name: "IPv6 low bits only (::1234:5678:9abc:def0)",
+			ip:   mpa("::1234:5678:9abc:def0"),
+			hi:   0,
+			lo:   0x123456789abcdef0,
+		},
+		{
+			name: "IPv6 documentation (2001:db8::1)",
+			ip:   mpa("2001:db8::1"),
+			hi:   0x20010db800000000,
+			lo:   1,
+		},
+		{
+			name: "IPv6 link-local (fe80::1)",
+			ip:   mpa("fe80::1"),
+			hi:   0xfe80000000000000,
+			lo:   1,
+		},
+		{
+			name: "IPv4-mapped IPv6 (::ffff:192.0.2.1)",
+			ip:   mpa("::ffff:192.0.2.1"),
+			hi:   0x0000000000000000,
+			lo:   0x0000ffffc0000201,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			gotHi, gotLo := extnetip.As2xUint64(tt.ip)
+
+			if gotHi != tt.hi {
+				t.Errorf("As2xUint64(%s) hi = 0x%016x, want 0x%016x", tt.ip, gotHi, tt.hi)
+			}
+			if gotLo != tt.lo {
+				t.Errorf("As2xUint64(%s) lo = 0x%016x, want 0x%016x", tt.ip, gotLo, tt.lo)
+			}
+		})
+	}
+}
+
+func TestAddrFrom2xUint64(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		hi   uint64
+		lo   uint64
+		ip   netip.Addr
+	}{
+		{
+			name: "IP unspecified",
+			hi:   0,
+			lo:   0,
+			ip:   mpa("::"),
+		},
+		{
+			name: "IPv4in6 loopback",
+			hi:   0,
+			lo:   0xffff7f000001,
+			ip:   mpa("::ffff:127.0.0.1"),
+		},
+		{
+			name: "IPv4in6 broadcast",
+			hi:   0,
+			lo:   0xffffffffffff,
+			ip:   mpa("::ffff:255.255.255.255"),
+		},
+		{
+			name: "IPv4in6 arbitrary",
+			hi:   0,
+			lo:   0xffffc0a801fe,
+			ip:   mpa("::ffff:192.168.1.254"),
+		},
+		{
+			name: "IPv6 loopback",
+			hi:   0,
+			lo:   1,
+			ip:   mpa("::1"),
+		},
+		{
+			name: "IPv6 all ones",
+			hi:   0xffffffffffffffff,
+			lo:   0xffffffffffffffff,
+			ip:   mpa("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"),
+		},
+		{
+			name: "IPv6 high bits only",
+			hi:   0x20010db800000000,
+			lo:   0,
+			ip:   mpa("2001:db8::"),
+		},
+		{
+			name: "IPv6 low bits only",
+			hi:   0,
+			lo:   0x123456789abcdef0,
+			ip:   mpa("::1234:5678:9abc:def0"),
+		},
+		{
+			name: "IPv6 documentation",
+			hi:   0x20010db800000000,
+			lo:   1,
+			ip:   mpa("2001:db8::1"),
+		},
+		{
+			name: "IPv6 link-local",
+			hi:   0xfe80000000000000,
+			lo:   1,
+			ip:   mpa("fe80::1"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			gotIP := extnetip.AddrFrom2xUint64(tt.hi, tt.lo)
+
+			if gotIP != tt.ip {
+				t.Errorf("AddrFrom2xUint64(0x%016x,0x%016x) = %s, want %s", tt.hi, tt.lo, gotIP, tt.ip)
+			}
+		})
+	}
+}
+
+func TestAs2xUint64_Idempotent(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		hi   uint64
+		lo   uint64
+		ip   netip.Addr
+	}{
+		{
+			name: "IP unspecified",
+			hi:   0,
+			lo:   0,
+			ip:   mpa("::"),
+		},
+		{
+			name: "IPv4in6 loopback",
+			hi:   0,
+			lo:   0xffff7f000001,
+			ip:   mpa("::ffff:127.0.0.1"),
+		},
+		{
+			name: "IPv4in6 broadcast",
+			hi:   0,
+			lo:   0xffffffffffff,
+			ip:   mpa("::ffff:255.255.255.255"),
+		},
+		{
+			name: "IPv4in6 arbitrary",
+			hi:   0,
+			lo:   0xffffc0a801fe,
+			ip:   mpa("::ffff:192.168.1.254"),
+		},
+		{
+			name: "IPv6 loopback",
+			hi:   0,
+			lo:   1,
+			ip:   mpa("::1"),
+		},
+		{
+			name: "IPv6 all ones",
+			hi:   0xffffffffffffffff,
+			lo:   0xffffffffffffffff,
+			ip:   mpa("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"),
+		},
+		{
+			name: "IPv6 high bits only",
+			hi:   0x20010db800000000,
+			lo:   0,
+			ip:   mpa("2001:db8::"),
+		},
+		{
+			name: "IPv6 low bits only",
+			hi:   0,
+			lo:   0x123456789abcdef0,
+			ip:   mpa("::1234:5678:9abc:def0"),
+		},
+		{
+			name: "IPv6 documentation",
+			hi:   0x20010db800000000,
+			lo:   1,
+			ip:   mpa("2001:db8::1"),
+		},
+		{
+			name: "IPv6 link-local",
+			hi:   0xfe80000000000000,
+			lo:   1,
+			ip:   mpa("fe80::1"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			hi, lo := extnetip.As2xUint64(tt.ip)
+			gotIP := extnetip.AddrFrom2xUint64(hi, lo)
+
+			if gotIP != tt.ip {
+				t.Errorf("AddrFrom2xUint64(As2xUint64(%s)) = %s, want %s", tt.ip, gotIP, tt.ip)
+			}
+
+			ip := extnetip.AddrFrom2xUint64(tt.hi, tt.lo)
+			hi, lo = extnetip.As2xUint64(ip)
+
+			if hi != tt.hi || lo != tt.lo {
+				t.Errorf("As2xUint64(AddrFrom2xUint64(0x%016x,0x%016x)) = (0x%016x,0x%016x), want (0x%016x,0x%016x)",
+					tt.hi, tt.lo, hi, lo, tt.hi, tt.lo)
+			}
+		})
+	}
+}
+
 func TestRange(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

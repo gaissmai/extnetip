@@ -25,7 +25,7 @@ import (
 // This struct layout must match netip.Addr exactly for unsafe conversions to work.
 type addr struct {
 	ip uint128
-	z  uintptr
+	z  unsafe.Pointer
 }
 
 // Internal singleton pointers extracted from zero-value netip.Addr instances.
@@ -35,8 +35,8 @@ type addr struct {
 // z4    - IPv4 address representation
 // z6noz - IPv6 address representation without zone
 var (
-	z4    uintptr
-	z6noz uintptr
+	z4    unsafe.Pointer
+	z6noz unsafe.Pointer
 )
 
 // Compile-time and runtime sanity checks: fail fast if layout changes.

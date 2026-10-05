@@ -52,6 +52,14 @@ func As2xUint64(ip netip.Addr) (hi, lo uint64) {
 	return addr.ip.hi, addr.ip.lo
 }
 
+// AddrFrom2xUint64 returns the IPv6 address given by the 2 uint64 words. An
+// IPv4-mapped IPv6 address is left as an IPv6 address. (Use Unmap to convert
+// them if needed.)
+func AddrFrom2xUint64(hi, lo uint64) netip.Addr {
+	a := addr{ip: uint128{hi: hi, lo: lo}, v4: false}
+	return wrap(a)
+}
+
 // unwrap extracts the raw uint128 representation from a netip.Addr safely.
 //
 //   - The IPv4 address is stored in its IPv4-mapped IPv6 representation in the low 64 bits.

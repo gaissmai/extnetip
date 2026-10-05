@@ -118,7 +118,21 @@ func BenchmarkAs2xUint64(b *testing.B) {
 			As2xUint64(ipv6Addrs[i&1023])
 		}
 	})
+}
 
+func BenchmarkAddrFrom2xUint64(b *testing.B) {
+	pairs := []uint128{
+		{hi: 0, lo: 0x123456789abcdef0},
+		{hi: 0x123456789abcdef0, lo: 0},
+		{hi: 0, lo: 0xffffc0a801fe},
+		{hi: 0, lo: 0xffffffffffff},
+	}
+
+	b.Run("AddrFrom2xUint64", func(b *testing.B) {
+		for i := 0; b.Loop(); i++ {
+			AddrFrom2xUint64(pairs[i&3].hi, pairs[i&3].lo)
+		}
+	})
 }
 
 func BenchmarkConversion(b *testing.B) {

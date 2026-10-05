@@ -81,6 +81,14 @@ func As2xUint64(ip netip.Addr) (hi, lo uint64) {
 	return addr.ip.hi, addr.ip.lo
 }
 
+// AddrFrom2xUint64 returns the IPv6 address given by the 2 uint64 words. An
+// IPv4-mapped IPv6 address is left as an IPv6 address. (Use Unmap to convert
+// them if needed.)
+func AddrFrom2xUint64(hi, lo uint64) netip.Addr {
+	a := addr{ip: uint128{hi: hi, lo: lo}, z: z6noz}
+	return *(*netip.Addr)(unsafe.Pointer(&a))
+}
+
 // unwrap converts a netip.Addr value into the internal addr representation using unsafe.Pointer.
 //
 // This is effectively a cast that allows direct access to netip.Addr internals without copying.

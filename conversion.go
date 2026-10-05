@@ -42,24 +42,6 @@ func (a *addr) is4() bool {
 	return a.v4
 }
 
-// As2xUint64 returns the IP address in its 128-bit representation.
-// IPv4 addresses are returned as IPv4-mapped IPv6 addresses.
-// IPv6 addresses with zones are returned without their zone
-// (use the [netip.Addr.Zone] method to get it).
-// The ip zero value returns all zeroes.
-func As2xUint64(ip netip.Addr) (hi, lo uint64) {
-	addr := unwrap(ip)
-	return addr.ip.hi, addr.ip.lo
-}
-
-// AddrFrom2xUint64 returns the IPv6 address given by the 2 uint64 words. An
-// IPv4-mapped IPv6 address is left as an IPv6 address. (Use Unmap to convert
-// them if needed.)
-func AddrFrom2xUint64(hi, lo uint64) netip.Addr {
-	a := addr{ip: uint128{hi: hi, lo: lo}, v4: false}
-	return wrap(a)
-}
-
 // unwrap extracts the raw uint128 representation from a netip.Addr safely.
 //
 //   - The IPv4 address is stored in its IPv4-mapped IPv6 representation in the low 64 bits.
@@ -100,4 +82,22 @@ func wrap(a addr) netip.Addr {
 
 	binary.BigEndian.PutUint64(a16[:8], a.ip.hi)
 	return netip.AddrFrom16(a16)
+}
+
+// As2xUint64 returns the IP address in its 128-bit representation.
+// IPv4 addresses are returned as IPv4-mapped IPv6 addresses.
+// IPv6 addresses with zones are returned without their zone
+// (use the [netip.Addr.Zone] method to get it).
+// The ip zero value returns all zeroes.
+func As2xUint64(ip netip.Addr) (hi, lo uint64) {
+	addr := unwrap(ip)
+	return addr.ip.hi, addr.ip.lo
+}
+
+// AddrFrom2xUint64 returns the IPv6 address given by the 2 uint64 words. An
+// IPv4-mapped IPv6 address is left as an IPv6 address. (Use Unmap to convert
+// them if needed.)
+func AddrFrom2xUint64(hi, lo uint64) netip.Addr {
+	a := addr{ip: uint128{hi: hi, lo: lo}, v4: false}
+	return wrap(a)
 }

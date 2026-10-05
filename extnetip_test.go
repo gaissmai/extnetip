@@ -66,10 +66,10 @@ func TestAs2xUint64(t *testing.T) {
 		lo   uint64
 	}{
 		{
-			name: "IPv4 zero (0.0.0.0)",
-			ip:   mpa("0.0.0.0"),
+			name: "IP zero",
+			ip:   netip.Addr{},
 			hi:   0,
-			lo:   0xffff00000000,
+			lo:   0,
 		},
 		{
 			name: "IPv4 loopback (127.0.0.1)",

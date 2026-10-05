@@ -28,6 +28,12 @@ type addr struct {
 	z  unsafe.Pointer
 }
 
+// prefix mirrors the memory layout of net/netip.Prefix.
+type prefix struct {
+	ip          addr
+	bitsPlusOne uint8
+}
+
 // Internal singleton pointers extracted from zero-value netip.Addr instances.
 // These uintptr values correspond to internal discriminators used by netip.Addr
 // to distinguish the kind of IP address representation.
@@ -97,6 +103,13 @@ func AddrFrom2xUint64(hi, lo uint64) netip.Addr {
 // Precondition: a is a valid IP address.
 func unwrap(a netip.Addr) addr {
 	return *(*addr)(unsafe.Pointer(&a))
+}
+
+// unwrapPrefix converts a net/netip.Prefix into the internal prefix representation using unsafe.Pointer.
+//
+// This allows direct access to the underlying address and prefix length without copying or allocations.
+func unwrapPrefix(p netip.Prefix) prefix {
+	return *(*prefix)(unsafe.Pointer(&p))
 }
 
 // wrap converts from the internal addr representation back to netip.Addr.

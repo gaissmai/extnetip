@@ -150,7 +150,7 @@ func BenchmarkConversion(b *testing.B) {
 	})
 
 	b.Run("wrap   v4", func(b *testing.B) {
-		addrs := make([]addr, 0, len(ipv4Addrs))
+		addrs := make([]addrT, 0, len(ipv4Addrs))
 		for _, ip4 := range ipv4Addrs {
 			addrs = append(addrs, unwrap(ip4))
 		}
@@ -161,7 +161,7 @@ func BenchmarkConversion(b *testing.B) {
 	})
 
 	b.Run("wrap   v6", func(b *testing.B) {
-		addrs := make([]addr, 0, len(ipv6Addrs))
+		addrs := make([]addrT, 0, len(ipv6Addrs))
 		for _, ip6 := range ipv6Addrs {
 			addrs = append(addrs, unwrap(ip6))
 		}
@@ -239,6 +239,20 @@ func BenchmarkCommonPrefix(b *testing.B) {
 	b.Run("v6 always long", func(b *testing.B) {
 		for i := 0; b.Loop(); i++ {
 			CommonPrefix(ipv6Pfxs[i&1023], ipv6Pfxs[i&1023])
+		}
+	})
+}
+
+func BenchmarkContains(b *testing.B) {
+	b.Run("v4", func(b *testing.B) {
+		for i := 0; b.Loop(); i++ {
+			ipv4Pfxs[i&1023].Contains(ipv4Addrs[i&1023])
+		}
+	})
+
+	b.Run("v6", func(b *testing.B) {
+		for i := 0; b.Loop(); i++ {
+			ipv6Pfxs[i&1023].Contains(ipv6Addrs[i&1023])
 		}
 	})
 }

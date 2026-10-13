@@ -139,7 +139,7 @@ func All(first, last netip.Addr) iter.Seq[netip.Prefix] {
 // Otherwise recursively splits the range into halves and processes both.
 //
 // All bit arithmetic and masking is done in uint128 space.
-func allRec(a, b addr, yield func(netip.Prefix) bool) bool {
+func allRec(a, b addrT, yield func(netip.Prefix) bool) bool {
 	// Check if [a, b] is exactly a prefix range
 	lcp, ok := a.ip.prefixOK(b.ip)
 	if ok {
@@ -203,4 +203,36 @@ func CommonPrefix(pfx1, pfx2 netip.Prefix) (pfx netip.Prefix) {
 
 	// return normalized prefix; addr1 or addr2 works equally
 	return netip.PrefixFrom(addr1, minBits).Masked()
+}
+
+// As2xUint64 returns the IP address in its 128-bit representation.
+// IPv4 addresses are returned as IPv4-mapped IPv6 addresses.
+// IPv6 addresses with zones are returned without their zone
+// (use the [netip.Addr.Zone] method to get it).
+// The ip zero value returns all zeroes.
+func As2xUint64(ip netip.Addr) (hi, lo uint64) {
+	return as2xUint64(ip)
+}
+
+// AddrFrom2xUint64 returns the IPv6 address given by the 2 uint64 words. An
+// IPv4-mapped IPv6 address is left as an IPv6 address. (Use Unmap to convert
+// them if needed.)
+func AddrFrom2xUint64(hi, lo uint64) netip.Addr {
+	return addrFrom2xUint64(hi, lo)
+}
+
+// ContainsUnsafe reports whether the network p includes ip using unsafe
+// low-level memory reinterpretation for maximum performance.
+//
+// Unlike netip.Prefix.Contains, this function differs in the following ways:
+//   - No Validation: Performs NO validity checks on the prefix or IP address.
+//     Passing invalid or zero-value inputs can lead to undefined behavior.
+//   - Zone Handling: Does NOT reject IPv6 addresses with zone identifiers.
+//     Because it compares raw 128-bit address fields directly, an IPv6 address
+//     with a zone can still match, whereas standard netip.Prefix.Contains
+//     explicitly returns false if an IP has a zone.
+//
+// Callers must ensure that both p and ip are valid and compatible prior to invocation.
+func ContainsUnsafe(p netip.Prefix, ip netip.Addr) bool {
+	return containsUnsafe(p, ip)
 }

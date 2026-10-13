@@ -17,11 +17,13 @@ import (
 	"net/netip"
 )
 
-// addr holds the IP address as uint128 data and a flag if it is IPv4.
+var _ = uint128{}.isZero()
+
+// addrT holds the IP address as uint128 data and a flag if it is IPv4.
 //
 // This struct is used for arithmetic or comparison operations
 // on netip.Addr data in a safe manner.
-type addr struct {
+type addrT struct {
 	ip uint128
 	v4 bool
 }
@@ -33,12 +35,12 @@ type addr struct {
 //
 // This version relies on safe, explicit encoding/decoding and does not
 // use unsafe pointers.
-func fromUint128(ip uint128, is4 bool) addr {
-	return addr{ip, is4}
+func fromUint128(ip uint128, is4 bool) addrT {
+	return addrT{ip, is4}
 }
 
 // is4 returns true if the address represents an IPv4 value.
-func (a *addr) is4() bool {
+func (a *addrT) is4() bool {
 	return a.v4
 }
 
@@ -47,7 +49,7 @@ func (a *addr) is4() bool {
 //   - The IPv4 address is stored in its IPv4-mapped IPv6 representation in the low 64 bits.
 //   - IPv6 addresses with zones are returned without their zone.
 //   - The ip zero value returns all zeroes.
-func unwrap(a netip.Addr) (b addr) {
+func unwrap(a netip.Addr) (b addrT) {
 	ip16 := a.As16() // zero-value array if a isn't valid
 
 	b.ip.lo = binary.BigEndian.Uint64(ip16[8:])
@@ -72,7 +74,7 @@ func unwrap(a netip.Addr) (b addr) {
 // - Otherwise, it returns an IPv6 netip.Addr from the full 16 bytes.
 //
 // This approach is fully safe and compatible with Go standard library interfaces.
-func wrap(a addr) netip.Addr {
+func wrap(a addrT) netip.Addr {
 	var a16 [16]byte
 	binary.BigEndian.PutUint64(a16[8:], a.ip.lo)
 
@@ -84,20 +86,25 @@ func wrap(a addr) netip.Addr {
 	return netip.AddrFrom16(a16)
 }
 
-// As2xUint64 returns the IP address in its 128-bit representation.
+// as2xUint64 returns the IP address in its 128-bit representation.
 // IPv4 addresses are returned as IPv4-mapped IPv6 addresses.
 // IPv6 addresses with zones are returned without their zone
 // (use the [netip.Addr.Zone] method to get it).
 // The ip zero value returns all zeroes.
-func As2xUint64(ip netip.Addr) (hi, lo uint64) {
+func as2xUint64(ip netip.Addr) (hi, lo uint64) {
 	addr := unwrap(ip)
 	return addr.ip.hi, addr.ip.lo
 }
 
-// AddrFrom2xUint64 returns the IPv6 address given by the 2 uint64 words. An
+// addrFrom2xUint64 returns the IPv6 address given by the 2 uint64 words. An
 // IPv4-mapped IPv6 address is left as an IPv6 address. (Use Unmap to convert
 // them if needed.)
-func AddrFrom2xUint64(hi, lo uint64) netip.Addr {
-	a := addr{ip: uint128{hi: hi, lo: lo}, v4: false}
+func addrFrom2xUint64(hi, lo uint64) netip.Addr {
+	a := addrT{ip: uint128{hi: hi, lo: lo}, v4: false}
 	return wrap(a)
+}
+
+// containsUnsafe is just a shim for !unsafe.
+func containsUnsafe(_ netip.Prefix, _ netip.Addr) bool {
+	panic("not implemented")
 }

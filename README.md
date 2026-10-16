@@ -47,13 +47,13 @@ goos: linux
 goarch: amd64
 pkg: github.com/gaissmai/extnetip
 cpu: AMD Ryzen 7 PRO 4750U with Radeon Graphics
-          │   safe.bm    │              unsafe.bm              │
-          │    sec/op    │    sec/op     vs base               │
-Range/v4    12.410n ± 1%   4.115n ± 32%  -66.84% (p=0.002 n=6)
-Range/v6    23.020n ± 1%   4.221n ± 31%  -81.66% (p=0.002 n=6)
-Prefix/v4   19.975n ± 1%   9.660n ±  2%  -51.64% (p=0.002 n=6)
-Prefix/v6   25.100n ± 1%   9.534n ±  0%  -62.02% (p=0.002 n=6)
-geomean      19.45n        6.324n        -67.49%
+          │   safe.bm    │             unsafe.bm              │
+          │    sec/op    │   sec/op     vs base               │
+Range/v4    10.540n ± 1%   3.340n ± 0%  -68.32% (p=0.002 n=6)
+Range/v6    15.550n ± 0%   3.351n ± 1%  -78.45% (p=0.002 n=6)
+Prefix/v4   12.815n ± 1%   8.062n ± 1%  -37.09% (p=0.002 n=6)
+Prefix/v6    16.70n ± 0%   10.55n ± 1%  -36.78% (p=0.002 n=6)
+geomean      13.68n        5.555n       -59.41%
 ```
 
 ## Future Work

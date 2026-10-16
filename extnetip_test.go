@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	n    = 2 << 2
+	n    = 2 << 8
 	mask = n - 1
 )
 
@@ -563,16 +563,24 @@ func TestModify(t *testing.T) {
 //
 
 func BenchmarkRange(b *testing.B) {
+	const batch = 100
+
 	b.Run("v4", func(b *testing.B) {
-		for i := 0; b.Loop(); i++ {
-			Range(ipv4Pfxs[i&mask])
+		for b.Loop() {
+			for i := range batch {
+				Range(ipv4Pfxs[i&mask])
+			}
 		}
+		b.ReportMetric(float64(b.Elapsed().Nanoseconds())/float64(b.N*batch), "ns/op")
 	})
 
 	b.Run("v6", func(b *testing.B) {
-		for i := 0; b.Loop(); i++ {
-			Range(ipv6Pfxs[i&mask])
+		for b.Loop() {
+			for i := range batch {
+				Range(ipv6Pfxs[i&mask])
+			}
 		}
+		b.ReportMetric(float64(b.Elapsed().Nanoseconds())/float64(b.N*batch), "ns/op")
 	})
 }
 
@@ -610,30 +618,43 @@ func BenchmarkPrefix(b *testing.B) {
 }
 
 func BenchmarkUnwrap(b *testing.B) {
+	const batch = 100
+
 	b.Run("v4", func(b *testing.B) {
-		for i := 0; b.Loop(); i++ {
-			unwrap(ipv4[i&mask])
+		for b.Loop() {
+			for i := range batch {
+				unwrap(ipv4[i&mask])
+			}
 		}
+		b.ReportMetric(float64(b.Elapsed().Nanoseconds())/float64(b.N*batch), "ns/op")
 	})
 
 	b.Run("v6", func(b *testing.B) {
-		for i := 0; b.Loop(); i++ {
-			unwrap(ipv6[i&mask])
+		for b.Loop() {
+			for i := range batch {
+				unwrap(ipv6[i&mask])
+			}
 		}
+		b.ReportMetric(float64(b.Elapsed().Nanoseconds())/float64(b.N*batch), "ns/op")
 	})
 
 }
 
 func BenchmarkWrap(b *testing.B) {
+	const batch = 100
+
 	b.Run("v4", func(b *testing.B) {
 		addrs := make([]addrT, 0, len(ipv4))
 		for _, ip := range ipv4 {
 			addrs = append(addrs, unwrap(ip))
 		}
 
-		for i := 0; b.Loop(); i++ {
-			wrap(addrs[i&mask], &[16]byte{})
+		for b.Loop() {
+			for i := range batch {
+				wrap(addrs[i&mask], &[16]byte{})
+			}
 		}
+		b.ReportMetric(float64(b.Elapsed().Nanoseconds())/float64(b.N*batch), "ns/op")
 	})
 
 	b.Run("v6", func(b *testing.B) {
@@ -642,9 +663,12 @@ func BenchmarkWrap(b *testing.B) {
 			addrs = append(addrs, unwrap(ip))
 		}
 
-		for i := 0; b.Loop(); i++ {
-			wrap(addrs[i&mask], &[16]byte{})
+		for b.Loop() {
+			for i := range batch {
+				wrap(addrs[i&mask], &[16]byte{})
+			}
 		}
+		b.ReportMetric(float64(b.Elapsed().Nanoseconds())/float64(b.N*batch), "ns/op")
 	})
 
 }

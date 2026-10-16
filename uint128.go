@@ -3,9 +3,6 @@ package extnetip
 import "math/bits"
 
 // uint128 represents a 128-bit unsigned integer value using two uint64 parts.
-//
-// This struct models the internal numeric representation of netip.Addr
-// in Go 1.18 and newer, where IP addresses are handled as 128-bit values.
 type uint128 struct {
 	hi uint64
 	lo uint64
@@ -92,7 +89,7 @@ func (u uint128) compare(v uint128) int {
 	return 0
 }
 
-// mask6 is a precalculated to keep Contains6 inlined
+// mask6 is precalculated
 var mask6 = [...]uint128{
 	0:   {0x0000000000000000, 0x0000000000000000},
 	1:   {0x8000000000000000, 0x0000000000000000},

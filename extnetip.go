@@ -18,13 +18,18 @@ import (
 // empty iterator for wrong input parameter
 var zeroIter iter.Seq[netip.Prefix] = func(func(netip.Prefix) bool) {}
 
+// addrFamily represents the internal address family classification
+// used to distinguish between IPv4 and IPv6 representations.
 type addrFamily uint
 
+// nolint:unused
 const (
+	// invalid represents an uninitialized addr.
 	invalid addrFamily = iota
+	// v4 represents the IPv4 address family.
 	v4
+	// v6 represents the IPv6 address family (including IPv4-mapped addresses).
 	v6
-	// v4in6 handled as v6
 )
 
 // Range returns the inclusive IP address range [first, last]
@@ -35,13 +40,20 @@ func Range(p netip.Prefix) (first, last netip.Addr) {
 	if !p.IsValid() {
 		return
 	}
+
 	ip := p.Addr()
+	bits := p.Bits()
+
+	// Check address family from the value directly while it resides in CPU registers.
+	// NOTE: ip.Is4() must be called BEFORE unwrap(ip) because taking the address
+	// of `ip` via unwrap forces the compiler to allocate a physical stack slot,
+	// inhibiting register promotion and downstream compiler optimizations.
 	is4 := ip.Is4()
 
-	// Extract internal representation of the prefix address as addr struct
+	// Extract internal representation of the prefix address as an addr struct
+	// only after value-based inspection is complete.
 	pa := unwrap(ip)
 
-	bits := p.Bits()
 	if is4 {
 		// IPv4 addresses are embedded in IPv6 space with a 96-bit prefix
 		bits += 96
@@ -50,12 +62,10 @@ func Range(p netip.Prefix) (first, last netip.Addr) {
 
 	// Calculate first IP in range: ip & mask
 	first128 := pa.ip.and(mask)
+	first = wrap(fromUint128(first128, is4), &[16]byte{})
 
 	// Calculate last IP in range: first | ^mask
 	last128 := first128.or(mask.not())
-
-	// wrap back to netip.Addr, preserving IPv4 or IPv6 form
-	first = wrap(fromUint128(first128, is4), &[16]byte{})
 	last = wrap(fromUint128(last128, is4), &[16]byte{})
 
 	return
@@ -68,7 +78,8 @@ func Range(p netip.Prefix) (first, last netip.Addr) {
 // Returns ok=false for ranges that don't align exactly to a prefix,
 // invalid IPs, mismatched IP versions or first > last.
 func Prefix(first, last netip.Addr) (prefix netip.Prefix, ok bool) {
-	// check validity
+	// Validity checks are performed via value-receiver methods first while
+	// the address values can still be optimized in CPU registers.
 	if !first.IsValid() || !last.IsValid() {
 		return
 	}
@@ -78,8 +89,10 @@ func Prefix(first, last netip.Addr) (prefix netip.Prefix, ok bool) {
 		return
 	}
 
-	a := unwrap(first) // low-level uint128 view of first
-	b := unwrap(last)  // low-level uint128 view of last
+	// Extract internal representation of the prefix address as an addr struct
+	// only after value-based inspection is complete.
+	a := unwrap(first) // Low-level uint128 view of first address
+	b := unwrap(last)  // Low-level uint128 view of last address
 
 	// Ensure ordering: first <= last
 	if a.ip.compare(b.ip) == 1 {
@@ -119,7 +132,6 @@ func All(first, last netip.Addr) iter.Seq[netip.Prefix] {
 	if first.Is4() != last.Is4() {
 		return zeroIter
 	}
-
 	a := unwrap(first) // low-level uint128 view of first
 	b := unwrap(last)  // low-level uint128 view of last
 
@@ -163,35 +175,42 @@ func allRec(is4 bool, a, b addrT, yield func(netip.Prefix) bool) bool {
 	return allRec(is4, a, leftUpper, yield) && allRec(is4, rightLower, b, yield)
 }
 
-// CommonPrefix returns the longest prefix shared by pfx1 and pfx2.
-// It returns the zero value if a prefix is invalid or if the IP
-// versions do not match. Otherwise it compares both addresses
-// and returns the prefix covering their common range.
+// CommonPrefix returns the smallest common supernet (longest common prefix)
+// that covers both pfx1 and pfx2 entirely.
+//
+// It returns the zero value if either prefix is invalid or if the IP
+// versions do not match.
 func CommonPrefix(pfx1, pfx2 netip.Prefix) (pfx netip.Prefix) {
 	if !pfx1.IsValid() || !pfx2.IsValid() {
 		return
 	}
 
-	addr1 := pfx1.Masked().Addr()
-	addr2 := pfx2.Masked().Addr()
+	ip1 := pfx1.Addr()
+	ip2 := pfx2.Addr()
 
-	is4 := addr1.Is4()
-	if addr2.Is4() != is4 {
+	bits1 := pfx1.Bits()
+	bits2 := pfx2.Bits()
+
+	ip1Is4 := ip1.Is4()
+	ip2Is4 := ip2.Is4()
+
+	// Check address family consistency, 4in6 is handled as v6.
+	if ip1Is4 != ip2Is4 {
 		return
 	}
 
-	ext1 := unwrap(addr1)
-	ext2 := unwrap(addr2)
+	addr1 := unwrap(ip1)
+	addr2 := unwrap(ip2)
 
 	// count matching bits in the full 128-bit space
-	commonBits := ext1.ip.commonPrefixLen(ext2.ip)
-	if is4 {
-		commonBits -= 96 // adjust offset for IPv4
+	lcp := addr1.ip.commonPrefixLen(addr2.ip)
+	if ip1Is4 {
+		lcp -= 96 // adjust offset for IPv4
 	}
 
-	// final length must not exceed shorter input prefix
-	minBits := min(commonBits, pfx1.Bits(), pfx2.Bits())
+	// final length must not exceed shortest input prefix
+	minBits := min(lcp, bits1, bits2)
 
 	// return normalized prefix; addr1 or addr2 works equally
-	return netip.PrefixFrom(addr1, minBits).Masked()
+	return netip.PrefixFrom(ip1, minBits).Masked()
 }

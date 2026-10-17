@@ -114,6 +114,10 @@ func assertCoversRange(first, last netip.Addr, pfxs []netip.Prefix, lenWanted in
 		return nil
 	}
 
+	// remove zones
+	first = first.WithZone("")
+	last = last.WithZone("")
+
 	// first prefix must start at 'first'
 	if f, _ := Range(pfxs[0]); f != first {
 		return fmt.Errorf("first prefix starts at %v, want %v", f, first)
@@ -308,6 +312,12 @@ func TestPrefix(t *testing.T) {
 			mpp("fe80::/10"),
 			true,
 		},
+		{
+			mpa("fe80::1"),
+			mpa("fe80::1%eth1"),
+			mpp("fe80::1/128"),
+			true,
+		},
 	}
 
 	for n, tt := range tests {
@@ -341,6 +351,7 @@ func TestAll(t *testing.T) {
 		{mpa("fe80::"), mpa("fe80::8"), 2},
 		{mpa("0.0.0.1"), mpa("255.255.255.254"), 62},
 		{mpa("::1"), mpa("ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe"), 254},
+		{mpa("fe80::1"), mpa("fe80::1%eth1"), 1},
 	}
 
 	for n, tt := range tests {
@@ -614,7 +625,20 @@ func BenchmarkPrefix(b *testing.B) {
 			Prefix(firsts[i&mask], lasts[i&mask])
 		}
 	})
+}
 
+func BenchmarkCommonPrefix(b *testing.B) {
+	b.Run("v4", func(b *testing.B) {
+		for i := 1; b.Loop(); i++ {
+			CommonPrefix(ipv4Pfxs[i&mask], ipv4Pfxs[(i-1)&mask])
+		}
+	})
+
+	b.Run("v6", func(b *testing.B) {
+		for i := 1; b.Loop(); i++ {
+			CommonPrefix(ipv6Pfxs[i&mask], ipv6Pfxs[(i-1)&mask])
+		}
+	})
 }
 
 func BenchmarkUnwrap(b *testing.B) {

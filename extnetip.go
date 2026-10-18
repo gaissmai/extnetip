@@ -22,14 +22,9 @@ var zeroIter iter.Seq[netip.Prefix] = func(func(netip.Prefix) bool) {}
 // used to distinguish between IPv4 and IPv6 representations.
 type addrFamily uint
 
-// nolint:unused
 const (
-	// invalid represents an uninitialized addr.
-	invalid addrFamily = iota
-	// v4 represents the IPv4 address family.
-	v4
-	// v6 represents the IPv6 address family (including IPv4-mapped addresses).
-	v6
+	v4 addrFamily = 4
+	v6 addrFamily = 6
 )
 
 // Range returns the inclusive IP address range [first, last]
@@ -48,25 +43,31 @@ func Range(p netip.Prefix) (first, last netip.Addr) {
 	// NOTE: ip.Is4() must be called BEFORE unwrap(ip) because taking the address
 	// of `ip` via unwrap forces the compiler to allocate a physical stack slot,
 	// inhibiting register promotion and downstream compiler optimizations.
-	is4 := ip.Is4()
-
 	// Extract internal representation of the prefix address as an addr struct
 	// only after value-based inspection is complete.
+	af := v4
+	if !ip.Is4() {
+		af = v6
+	}
 	pa := unwrap(ip)
 
-	if is4 {
+	if af == v4 {
 		// IPv4 addresses are embedded in IPv6 space with a 96-bit prefix
 		bits += 96
 	}
 	mask := mask6[bits] // get the network mask as uint128
 
 	// Calculate first IP in range: ip & mask
+	buf := [16]byte{}
+
 	first128 := pa.ip.and(mask)
-	first = wrap(fromUint128(first128, is4), &[16]byte{})
+	a1 := fromUint128(first128, af)
+	first = wrap(a1, &buf)
 
 	// Calculate last IP in range: first | ^mask
 	last128 := first128.or(mask.not())
-	last = wrap(fromUint128(last128, is4), &[16]byte{})
+	a2 := fromUint128(last128, af)
+	last = wrap(a2, &buf)
 
 	return
 }
@@ -140,10 +141,15 @@ func All(first, last netip.Addr) iter.Seq[netip.Prefix] {
 		return zeroIter
 	}
 
+	af := v4
+	if !first.Is4() {
+		af = v6
+	}
+
 	// happy path
 	return func(yield func(netip.Prefix) bool) {
 		// Start recursive subdivision and yield prefixes
-		allRec(first.Is4(), a, b, yield)
+		allRec(af, a, b, yield)
 	}
 }
 
@@ -154,12 +160,12 @@ func All(first, last netip.Addr) iter.Seq[netip.Prefix] {
 // Otherwise recursively splits the range into halves and processes both.
 //
 // All bit arithmetic and masking is done in uint128 space.
-func allRec(is4 bool, a, b addrT, yield func(netip.Prefix) bool) bool {
+func allRec(af addrFamily, a, b addr, yield func(netip.Prefix) bool) bool {
 	// Check if [a, b] is exactly a prefix range
 	lcp, ok := a.ip.prefixOK(b.ip)
 	if ok {
 		// Found exact CIDR match - yield it and stop recursion
-		if is4 {
+		if af == v4 {
 			lcp -= 96 // Adjust for IPv4-in-IPv6 embedding
 		}
 		return yield(netip.PrefixFrom(wrap(a, &[16]byte{}), lcp))
@@ -167,12 +173,12 @@ func allRec(is4 bool, a, b addrT, yield func(netip.Prefix) bool) bool {
 
 	// Range doesn't match a single CIDR - split it in half
 	// lcp < 128 since prefixOK returned ok=false (a != b), ensuring lcp+1 <= 128 for mask6 indexing
-	mask := mask6[lcp+1]                               // Mask for one bit longer prefix
-	leftUpper := fromUint128(a.ip.or(mask.not()), is4) // Left half upper bound
-	rightLower := fromUint128(b.ip.and(mask), is4)     // Right half lower bound
+	mask := mask6[lcp+1]                              // Mask for one bit longer prefix
+	leftUpper := fromUint128(a.ip.or(mask.not()), af) // Left half upper bound
+	rightLower := fromUint128(b.ip.and(mask), af)     // Right half lower bound
 
 	// Recursively process both halves
-	return allRec(is4, a, leftUpper, yield) && allRec(is4, rightLower, b, yield)
+	return allRec(af, a, leftUpper, yield) && allRec(af, rightLower, b, yield)
 }
 
 // CommonPrefix returns the smallest common supernet (longest common prefix)

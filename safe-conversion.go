@@ -16,49 +16,48 @@ import (
 	"net/netip"
 )
 
-// addrT holds the IP address as uint128 data and a flag if it is IPv4.
+// addr holds the IP address as uint128 data and an address family flag.
 //
 // This struct is used for arithmetic or comparison operations
 // on netip.Addr data in a safe manner.
-type addrT struct {
+type addr struct {
 	ip uint128
+
+	// CRITICAL PERFORMANCE NOTE: Do NOT refactor this to a 'bool'.
+	// Using an integer-based address family (addrFamily) allows
+	// the Go compiler to keep family flags and conversion states
+	// entirely within CPU registers via direct arithmetic and CMOV,
+	// preventing forced stack spills and register pressure that
+	// would otherwise double the latency of Range() calculations.
 	af addrFamily
 }
 
 // fromUint128 creates an addr struct from a uint128 IP representation and a flag is4.
-func fromUint128(ip uint128, is4 bool) addrT {
-	if is4 {
-		return addrT{ip: ip, af: v4}
-	}
-	return addrT{ip: ip, af: v6}
+func fromUint128(ip uint128, af addrFamily) addr {
+	return addr{ip: ip, af: af}
 }
 
 // unwrap extracts the raw uint128 representation from a netip.Addr safely.
-func unwrap(a netip.Addr) (b addrT) {
-	octets := a.AsSlice()
-	if octets == nil {
-		return
-	}
+// Precondition: The ip must be valid.
+func unwrap(ip netip.Addr) (a addr) {
+	octets := ip.AsSlice()
 
 	if len(octets) == 4 {
-		b.af = v4
-		b.ip.lo = uint64(binary.BigEndian.Uint32(octets))
-		return b
+		a.af = v4
+		a.ip.lo = uint64(binary.BigEndian.Uint32(octets))
+		return a
 	}
 
-	b.af = v6
-	b.ip.hi = binary.BigEndian.Uint64(octets[:8])
-	b.ip.lo = binary.BigEndian.Uint64(octets[8:])
+	a.af = v6
+	a.ip.hi = binary.BigEndian.Uint64(octets[:8])
+	a.ip.lo = binary.BigEndian.Uint64(octets[8:])
 
-	return b
+	return a
 }
 
 // wrap converts an addr back to a netip.Addr using safe conversions via byte arrays.
-func wrap(a addrT, buf *[16]byte) (ip netip.Addr) {
-	if a.af == invalid {
-		return
-	}
-
+// Precondition: The addr must be valid, the zero value returns "::".
+func wrap(a addr, buf *[16]byte) (ip netip.Addr) {
 	binary.BigEndian.PutUint64(buf[8:], a.ip.lo)
 	if a.af == v4 {
 		return netip.AddrFrom4([4]byte(buf[12:]))

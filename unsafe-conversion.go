@@ -16,22 +16,22 @@ import (
 	"unsafe"
 )
 
-// addrT is a low-level struct used to interpret netip.Addr internals via unsafe.Pointer.
+// addr is a low-level struct used to interpret netip.Addr internals via unsafe.Pointer.
 //
 // It contains:
 // - ip: the raw 128-bit IP address data as a uint128.
 // - z:  used internally by netip.Addr to track address kind and zone.
 //
 // This struct layout must match netip.Addr exactly for unsafe conversions to work.
-type addrT struct {
+type addr struct {
 	ip uint128
 	z  unsafe.Pointer
 }
 
 // Compile-time assertion to verify memory layout compatibility.
 const (
-	sizeDiff  = int(unsafe.Sizeof(addrT{})) - int(unsafe.Sizeof(netip.Addr{}))
-	alignDiff = int(unsafe.Alignof(addrT{})) - int(unsafe.Alignof(netip.Addr{}))
+	sizeDiff  = int(unsafe.Sizeof(addr{})) - int(unsafe.Sizeof(netip.Addr{}))
+	alignDiff = int(unsafe.Alignof(addr{})) - int(unsafe.Alignof(netip.Addr{}))
 )
 
 // Use a bitwise-OR (sizeDiff | alignDiff) instead of addition (+)
@@ -54,19 +54,19 @@ var (
 )
 
 // fromUint128 constructs an addr struct from a uint128 IP representation and af.
-func fromUint128(ip uint128, is4 bool) addrT {
-	if is4 {
-		return addrT{ip, z4}
+func fromUint128(ip uint128, af addrFamily) addr {
+	if af == v4 {
+		return addr{ip, z4}
 	}
-	return addrT{ip, z6noz}
+	return addr{ip, z6noz}
 }
 
 // unwrap casts a netip.Addr value into the internal addr representation.
-func unwrap(ip netip.Addr) addrT {
-	return *(*addrT)(unsafe.Pointer(&ip))
+func unwrap(ip netip.Addr) addr {
+	return *(*addr)(unsafe.Pointer(&ip))
 }
 
 // wrap casts from the internal addr representation back to netip.Addr.
-func wrap(a addrT, _ *[16]byte) netip.Addr {
+func wrap(a addr, _ *[16]byte) netip.Addr {
 	return *(*netip.Addr)(unsafe.Pointer(&a))
 }

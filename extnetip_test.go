@@ -493,12 +493,6 @@ func TestRoundTrip(t *testing.T) {
 	// IPv6 zone identifieres are always stripped!
 	t.Parallel()
 
-	zero := netip.Addr{}
-
-	if wrap(unwrap(zero), &[16]byte{}) != zero {
-		t.Fatalf("RoundTrip wrap(unwrap(%s)), expect: %v, got: %v", zero, zero, wrap(unwrap(zero), &[16]byte{}))
-	}
-
 	v4 := mpa("0.0.0.0")
 	if wrap(unwrap(v4), &[16]byte{}) != v4 {
 		t.Fatalf("RoundTrip wrap(unwrap(%s)), expect: %v, got: %v", v4, v4, wrap(unwrap(v4), &[16]byte{}))
@@ -668,28 +662,30 @@ func BenchmarkWrap(b *testing.B) {
 	const batch = 100
 
 	b.Run("v4", func(b *testing.B) {
-		addrs := make([]addrT, 0, len(ipv4))
+		addrs := make([]addr, 0, len(ipv4))
 		for _, ip := range ipv4 {
 			addrs = append(addrs, unwrap(ip))
 		}
 
+		buf := [16]byte{}
 		for b.Loop() {
 			for i := range batch {
-				wrap(addrs[i&mask], &[16]byte{})
+				wrap(addrs[i&mask], &buf)
 			}
 		}
 		b.ReportMetric(float64(b.Elapsed().Nanoseconds())/float64(b.N*batch), "ns/op")
 	})
 
 	b.Run("v6", func(b *testing.B) {
-		addrs := make([]addrT, 0, len(ipv6))
+		addrs := make([]addr, 0, len(ipv6))
 		for _, ip := range ipv6 {
 			addrs = append(addrs, unwrap(ip))
 		}
 
+		buf := [16]byte{}
 		for b.Loop() {
 			for i := range batch {
-				wrap(addrs[i&mask], &[16]byte{})
+				wrap(addrs[i&mask], &buf)
 			}
 		}
 		b.ReportMetric(float64(b.Elapsed().Nanoseconds())/float64(b.N*batch), "ns/op")

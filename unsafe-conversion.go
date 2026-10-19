@@ -41,16 +41,15 @@ const (
 // which triggers an immediate compile-time error.
 var _ [1]struct{} = [1 - (sizeDiff | alignDiff)]struct{}{}
 
-// Internal singleton pointers extracted from zero-value netip.Addr instances.
-// These pointer values correspond to internal discriminators used by netip.Addr
+// Internal sentinel pointers extracted from netip.Addr instances.
+// These pointer values correspond to internal sentinels used by netip.Addr
 // to distinguish the kind of IP address representation.
 //
 // z4    - IPv4 address representation
 // z6noz - IPv6 address representation without zone
 var (
-	// Initialize discriminators only after alignment is verified.
-	z4    = unwrap(netip.AddrFrom4([4]byte{})).z
-	z6noz = unwrap(netip.AddrFrom16([16]byte{})).z
+	z4    = unwrap(netip.IPv4Unspecified()).z
+	z6noz = unwrap(netip.IPv6Unspecified()).z
 )
 
 // fromUint128 constructs an addr struct from a uint128 IP representation and af.
@@ -66,7 +65,9 @@ func unwrap(ip netip.Addr) addr {
 	return *(*addr)(unsafe.Pointer(&ip))
 }
 
-// wrap casts from the internal addr representation back to netip.Addr.
+// wrap casts from the internal addr representation back to netip.Addr using unsafe.Pointer.
+// The scratch buffer parameter is ignored in the unsafe implementation but kept for API parity
+// with the safe build.
 func wrap(a addr, _ *[16]byte) netip.Addr {
 	return *(*netip.Addr)(unsafe.Pointer(&a))
 }

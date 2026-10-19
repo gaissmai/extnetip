@@ -32,14 +32,17 @@ type addr struct {
 	af addrFamily
 }
 
-// fromUint128 creates an addr struct from a uint128 IP representation and a flag is4.
+// fromUint128 constructs an addr struct from a uint128 IP representation and af.
 func fromUint128(ip uint128, af addrFamily) addr {
 	return addr{ip: ip, af: af}
 }
 
-// unwrap extracts the raw uint128 representation from a netip.Addr safely.
-// Precondition: The ip must be valid.
+// unwrap extracts the internal uint128 bit representation from ip.
+//
+// Precondition: ip must be a valid address (ip.IsValid() must be true).
+// Passing an invalid netip.Addr will trigger a panic.
 func unwrap(ip netip.Addr) (a addr) {
+	// AsSlice() returns nil if ip is not valid.
 	octets := ip.AsSlice()
 
 	if len(octets) == 4 {
@@ -55,8 +58,11 @@ func unwrap(ip netip.Addr) (a addr) {
 	return a
 }
 
-// wrap converts an addr back to a netip.Addr using safe conversions via byte arrays.
-// Precondition: The addr must be valid, the zero value returns "::".
+// wrap constructs a valid netip.Addr from an internal addr representation
+// using the provided scratch buffer to avoid heap allocations.
+//
+// Precondition: addr must represent a valid IP address. If addr is zero-valued,
+// wrap returns netip.IPv6Unspecified() ("::").
 func wrap(a addr, buf *[16]byte) (ip netip.Addr) {
 	binary.BigEndian.PutUint64(buf[8:], a.ip.lo)
 	if a.af == v4 {
